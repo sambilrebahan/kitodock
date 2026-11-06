@@ -1,0 +1,5 @@
+{
+  "$meta": { "code": "xx", "name": "Fixture", "nativeName": "Fikstür", "autoTranslated": true },
+  "greet": "Salam",
+  "app": { "name": "Fikstür" }
+}

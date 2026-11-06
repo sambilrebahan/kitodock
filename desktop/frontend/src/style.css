@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+/*
+ * Kitodock's theme system, written for Tailwind v4 CSS-first configuration:
+ * there is no tailwind.config.js. Each theme declares the same custom
+ * properties under its [data-theme] scope; @theme inline maps them onto
+ * color tokens so utilities like bg-accent or text-accent2 resolve to the
+ * live values (and opacity modifiers work through color-mix()).
+ *
+ * The default (:root) palette is Nebula; the other five follow below.
+ */
+
+:root,
+[data-theme="nebula"] {
+  --c-accent: #7c5cff;
+  --c-accent-soft: #5cffd1;
+  --c-bg-deep: #1a0b2e;
+  --c-bg-mid: #0b1026;
+  --c-bg-far: #050816;
+  --c-glow-primary: rgba(124, 92, 255, 0.25);
+  --c-glow-secondary: rgba(92, 255, 209, 0.1);
+  --c-ink: #e4e6ff;
+}
+
+[data-theme="aurora"] {
+  --c-accent: #10d995;
+  --c-accent-soft: #5ce1ff;
+  --c-bg-deep: #06281f;
+  --c-bg-mid: #051a1f;
+  --c-bg-far: #02100f;
+  --c-glow-primary: rgba(16, 217, 149, 0.25);
+  --c-glow-secondary: rgba(92, 225, 255, 0.12);
+  --c-ink: #e4fff5;
+}
+
+[data-theme="sunset"] {
+  --c-accent: #ff8a3d;
+  --c-accent-soft: #ffd166;
+  --c-bg-deep: #2e0f0b;
+  --c-bg-mid: #1f0a0d;
+  --c-bg-far: #100506;
+  --c-glow-primary: rgba(255, 138, 61, 0.22);
+  --c-glow-secondary: rgba(255, 209, 102, 0.1);
+  --c-ink: #ffeede;
+}
+
+[data-theme="crimson"] {
+  --c-accent: #ff4d6d;
+  --c-accent-soft: #ff8fab;
+  --c-bg-deep: #2a0612;
+  --c-bg-mid: #1a040b;
+  --c-bg-far: #0c0205;
+  --c-glow-primary: rgba(255, 77, 109, 0.24);
+  --c-glow-secondary: rgba(255, 143, 171, 0.1);
+  --c-ink: #ffe2e8;
+}
+
+[data-theme="oceanic"] {
+  --c-accent: #4d8eff;
+  --c-accent-soft: #7fdcff;
+  --c-bg-deep: #0b1c3a;
+  --c-bg-mid: #061226;
+  --c-bg-far: #020713;
+  --c-glow-primary: rgba(77, 142, 255, 0.24);
+  --c-glow-secondary: rgba(127, 220, 255, 0.1);
+  --c-ink: #dfeeff;
+}
+
+[data-theme="midnight"] {
+  --c-accent: #9ca3af;
+  --c-accent-soft: #e5e7eb;
+  --c-bg-deep: #0a0a0a;
+  --c-bg-mid: #050505;
+  --c-bg-far: #000000;
+  --c-glow-primary: rgba(156, 163, 175, 0.1);
+  --c-glow-secondary: rgba(229, 231, 235, 0.04);
+  --c-ink: #e5e7eb;
+}
+
+@theme inline {
+  --color-accent: var(--c-accent);
+  --color-accent2: var(--c-accent-soft);
+  --color-deep: var(--c-bg-deep);
+  --color-midnight: var(--c-bg-mid);
+  --font-mono: "JetBrains Mono", Menlo, monospace;
+}
+
+/* The app is dark by design; telling the platform keeps native controls
+   (dropdown popups, scrollbars) from flashing white over the glass UI. */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 800px at 0% 0%, var(--c-glow-primary) 0%, transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, var(--c-glow-secondary) 0%, transparent 55%),
+    linear-gradient(180deg, var(--c-bg-deep) 0%, var(--c-bg-mid) 60%, var(--c-bg-far) 100%);
+  color: var(--c-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* WebView2 in a light-themed Windows session still paints <option> popups
+   white unless the option elements themselves carry colors. */
+select option {
+  background-color: #13102a;
+  color: var(--c-ink);
+}
+
+/*
+ * Shared component classes. Kept deliberately small: anything used twice
+ * across screens belongs here, everything else stays inline in its component.
+ */
+@layer components {
+  .glass {
+    @apply rounded-lg border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md;
+  }
+
+  .glass-strong {
+    @apply rounded-lg border border-white/15 bg-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-xl;
+  }
+
+  /* Brand wordmark: "dock" carries the accent gradient, "Kito" stays in
+     regular text colour. */
+  .brand-dock {
+    @apply bg-gradient-to-r from-[#1f6bff] via-[#0f9df0] to-[#18ddc6] bg-clip-text text-transparent;
+  }
+
+  .modal-card {
+    @apply rounded-lg border border-white/15 bg-[#13102a] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.85)];
+  }
+
+  .input {
+    @apply rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm focus:border-accent focus:outline-none disabled:opacity-50;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

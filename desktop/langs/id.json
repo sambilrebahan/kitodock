@@ -1,0 +1,79 @@
+{
+  "$meta": { "code": "id", "name": "Indonesian", "nativeName": "Bahasa Indonesia" },
+  "backend": {
+    "notifications": {
+      "historyMalformed": "Berkas riwayat notifikasi tidak terbaca dan disisihkan apa adanya; riwayat dimulai ulang."
+    }
+  },
+  "errors": {
+    "app": {
+      "unknownLanguage": "bahasa tidak dikenal \"{{code}}\""
+    },
+    "notifications": {
+      "unsupportedSchema": "versi skema riwayat notifikasi {{version}} tidak didukung",
+      "decodeFailed": "riwayat notifikasi gagal didekode (menyisihkan salinannya juga gagal: {{renameError}})"
+    }
+  },
+  "nav": {
+    "dashboard": "Dasbor",
+    "projects": "Proyek",
+    "terminal": "Terminal",
+    "ssh": "SSH",
+    "cron": "Cron",
+    "deployments": "Deployment",
+    "downloads": "Pustaka / Alat",
+    "agents": "Agen",
+    "settings": "Pengaturan"
+  },
+  "sidebar": {
+    "collapse": "Ciutkan bilah samping",
+    "expand": "Lebarkan bilah samping",
+    "version": "Versi {{version}}"
+  },
+  "window": {
+    "minimize": "Minimalkan",
+    "maximize": "Maksimalkan / pulihkan",
+    "close": "Tutup"
+  },
+  "page": {
+    "placeholder": "Bagian ini hadir pada fase {{phase}}."
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "appearance": {
+      "title": "Tampilan",
+      "themesLabel": "Tema",
+      "themesHelp": "Tema diterapkan seketika dan diingat di perangkat ini.",
+      "themes": {
+        "nebula": "Ungu & mint bawaan",
+        "aurora": "Hijau & langit",
+        "sunset": "Jingga & kuning gading",
+        "crimson": "Merah & merah muda",
+        "oceanic": "Biru & sian",
+        "midnight": "Abu monokrom"
+      }
+    },
+    "language": {
+      "title": "Bahasa",
+      "help": "Bahasa antarmuka. Berlaku di semua jendela Kitodock.",
+      "needsReview": "diterjemahkan mesin — reviu penutur asli ditunggu"
+    }
+  },
+  "dialog": {
+    "confirm": "Konfirmasi",
+    "cancel": "Batal",
+    "ok": "OKE",
+    "save": "Simpan",
+    "close": "Tutup",
+    "yes": "Ya",
+    "no": "Tidak"
+  },
+  "common": {
+    "loading": "Memuat…"
+  },
+  "errorBoundary": {
+    "title": "Terjadi kesalahan",
+    "description": "Galat tak terduga terjadi saat merender tampilan ini.",
+    "reload": "Muat ulang"
+  }
+}

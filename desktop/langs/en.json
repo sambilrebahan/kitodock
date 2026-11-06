@@ -1,0 +1,79 @@
+{
+  "$meta": { "code": "en", "name": "English", "nativeName": "English" },
+  "backend": {
+    "notifications": {
+      "historyMalformed": "The notification history file was unreadable and has been set aside untouched; history starts fresh."
+    }
+  },
+  "errors": {
+    "app": {
+      "unknownLanguage": "unknown language \"{{code}}\""
+    },
+    "notifications": {
+      "unsupportedSchema": "unsupported notification history schema version {{version}}",
+      "decodeFailed": "notification history could not be decoded (setting the copy aside also failed: {{renameError}})"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "terminal": "Terminal",
+    "ssh": "SSH",
+    "cron": "Cron",
+    "deployments": "Deployments",
+    "downloads": "Libs / Tools",
+    "agents": "Agents",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "version": "Version {{version}}"
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize / restore",
+    "close": "Close"
+  },
+  "page": {
+    "placeholder": "This section arrives in phase {{phase}}."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "themesLabel": "Theme",
+      "themesHelp": "The theme applies immediately and is remembered on this device.",
+      "themes": {
+        "nebula": "Default purple & mint",
+        "aurora": "Green & sky",
+        "sunset": "Orange & amber",
+        "crimson": "Red & pink",
+        "oceanic": "Blue & cyan",
+        "midnight": "Monochrome gray"
+      }
+    },
+    "language": {
+      "title": "Language",
+      "help": "The interface language. It applies across every Kitodock window.",
+      "needsReview": "machine-translated — native review welcome"
+    }
+  },
+  "dialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "save": "Save",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "common": {
+    "loading": "Loading…"
+  },
+  "errorBoundary": {
+    "title": "Something broke",
+    "description": "An unexpected error occurred while rendering this view.",
+    "reload": "Reload"
+  }
+}

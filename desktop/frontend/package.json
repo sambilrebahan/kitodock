@@ -1,0 +1,37 @@
+{
+  "name": "kitodock-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.1.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "eslint": "^9.37.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "8.5.23",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.67.1",
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
+  }
+}

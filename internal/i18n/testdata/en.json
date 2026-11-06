@@ -1,0 +1,10 @@
+{
+  "$meta": { "code": "en", "name": "English", "nativeName": "English" },
+  "greet": "Hello",
+  "app": {
+    "name": "Fixture",
+    "items": { "one": "{{count}} item", "other": "{{count}} items" },
+    "label": "Project {{name}}"
+  },
+  "fallbackOnly": "english-only string"
+}

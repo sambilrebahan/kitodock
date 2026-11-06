@@ -1,0 +1,77 @@
+// Package paths is the single authority for where Kitodock keeps everything
+// on disk. Every other package resolves locations through it, so moving the
+// whole environment only ever means changing the root here.
+//
+// Root resolution order (decided once, at process start):
+//
+//  1. the KITODOCK_ROOT environment variable — the test and support escape
+//     hatch, which wins over everything;
+//  2. the directory holding the executable, when it contains the
+//     ".kitodock-portable" marker shipped inside the portable ZIP — that
+//     folder *is* the environment;
+//  3. C:\kitodock — the fixed install location for setup-based installs.
+package paths
+
+import (
+	"os"
+	"path/filepath"
+)
+
+const (
+	// EnvRoot is the environment variable that overrides the install root.
+	EnvRoot = "KITODOCK_ROOT"
+
+	// PortableMarker names the flag file that marks a portable distribution.
+	PortableMarker = ".kitodock-portable"
+
+	// fixedRoot is where installed (non-portable) environments live.
+	fixedRoot = `C:\kitodock`
+)
+
+var (
+	root     string
+	portable bool
+)
+
+// resolve is split out so tests can exercise every branch with their own
+// directories instead of relying on where the test binary happens to sit.
+func resolve(exeDir, envValue string) (string, bool) {
+	if envValue != "" {
+		return envValue, false
+	}
+	if exeDir != "" {
+		if _, err := os.Stat(filepath.Join(exeDir, PortableMarker)); err == nil {
+			return exeDir, true
+		}
+	}
+	return fixedRoot, false
+}
+
+func init() {
+	exeDir := ""
+	if exe, err := os.Executable(); err == nil {
+		exeDir = filepath.Dir(exe)
+	}
+	root, portable = resolve(exeDir, os.Getenv(EnvRoot))
+}
+
+// Root is the environment root this process runs against.
+func Root() string { return root }
+
+// IsPortable reports whether the executable lives inside a portable
+// distribution, which changes how updates are applied later.
+func IsPortable() bool { return portable }
+
+// ConfigFile is the path of the persisted preferences document.
+func ConfigFile() string { return filepath.Join(Root(), "config.json") }
+
+// StateDir holds the app's persistent state documents (notification history,
+// route table, and so on).
+func StateDir() string { return filepath.Join(Root(), "state") }
+
+// ProjectsDir is the default folder projects are created under. The user may
+// point the config elsewhere; this is only the default.
+func ProjectsDir() string { return filepath.Join(Root(), "www") }
+
+// LogsDir is where rotating application logs will land once logging ships.
+func LogsDir() string { return filepath.Join(Root(), "logs") }
