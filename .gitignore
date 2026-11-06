@@ -1,0 +1,27 @@
+# Go
+*.exe
+*.test
+*.out
+build/bin/
+
+# Wails generated
+desktop/build/bin/
+desktop/frontend/wailsjs/
+
+# Frontend
+desktop/frontend/node_modules/
+desktop/frontend/dist/*
+!desktop/frontend/dist/index.html
+desktop/frontend/public/vs/
+desktop/frontend/package.json.md5
+
+# Runtime environments (never commit a whole install root)
+cache/
+www/
+state/
+logs/
+
+# Tooling
+*.log
+.DS_Store
+Thumbs.db

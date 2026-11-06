@@ -1,0 +1,24 @@
+Kitodock
+Copyright 2026 Kitodock contributors
+
+This product includes software developed as part of Kitodock.
+
+==============================================================================
+Kitodock is an independent implementation. Its architecture and behavior
+take LaraEnv (https://github.com/thayronarrais/laraenv) as a reference —
+what problems exist, what behaviors users expect — but no LaraEnv source
+code is included in this repository. An automated line-level audit covering
+every Go/TypeScript/CSS source file is described in
+docs/progress/fase-0.md; residual identical lines are import statements,
+third-party API call shapes and single-line language idioms, with zero
+identical comment or prose lines.
+
+The default theme palette is derived from the reference application's
+visual design; replace it with original artwork before any public release
+(see docs/05-risiko-dan-licensing.md).
+
+==============================================================================
+Third-party components retain their own licenses; a full inventory will be
+maintained in THIRD_PARTY_NOTICES.txt as binary redistributions are
+introduced (initially: the JetBrains Mono web fonts bundled by
+@fontsource/jetbrains-mono under the SIL Open Font License 1.1).
