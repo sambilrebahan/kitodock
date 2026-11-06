@@ -1,0 +1,77 @@
+name: Desktop checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  checks:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+
+      - name: Provision Go modules
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Build Wails CLI from the module graph
+        run: |
+          go build -o build\bin\wails.exe github.com/wailsapp/wails/v2/cmd/wails
+
+      - name: Build desktop (generates wailsjs bindings + frontend dist)
+        working-directory: desktop
+        run: |
+          ..\build\bin\wails.exe build -m -nosyncgomod -platform windows/amd64 -webview2 browser
+          if (-not (Test-Path frontend\wailsjs\go\controllers\System.js)) {
+            throw "wails build did not generate the controllers.System bindings"
+          }
+
+      - name: Frontend install
+        working-directory: desktop/frontend
+        run: npm ci --ignore-scripts
+
+      - name: Frontend test
+        working-directory: desktop/frontend
+        run: npm test
+
+      - name: Frontend lint
+        working-directory: desktop/frontend
+        run: npm run lint
+
+      - name: Go test
+        run: go test -mod=readonly ./...
+
+      # -unsafeptr is relaxed only for internal/clipboard, whose Win32
+      # HGLOBAL access must convert a GlobalLock uintptr; there is no
+      # vet-clean spelling of that pattern.
+      - name: Go vet
+        run: go vet -unsafeptr=false ./...
+
+      - name: Guard generated/lockfile files
+        run: |
+          git diff --exit-code -- go.mod go.sum desktop/wails.json desktop/frontend/package.json desktop/frontend/package-lock.json LICENSE NOTICE
