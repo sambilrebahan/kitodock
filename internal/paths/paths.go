@@ -75,3 +75,23 @@ func ProjectsDir() string { return filepath.Join(Root(), "www") }
 
 // LogsDir is where rotating application logs will land once logging ships.
 func LogsDir() string { return filepath.Join(Root(), "logs") }
+
+// Service homes. Each service owns one folder under the root; Phase 1 wires
+// nginx, MySQL, Redis and Mailpit, the rest join with their phases.
+func NginxDir() string    { return filepath.Join(Root(), "nginx") }
+func ApacheDir() string   { return filepath.Join(Root(), "apache") }
+func CaddyDir() string    { return filepath.Join(Root(), "caddy") }
+func MySQLDir() string    { return filepath.Join(Root(), "mysql") }
+func PostgresDir() string { return filepath.Join(Root(), "postgres") }
+func RedisDir() string    { return filepath.Join(Root(), "redis") }
+func MailpitDir() string  { return filepath.Join(Root(), "mailpit") }
+func PHPDir() string      { return filepath.Join(Root(), "php") }
+func NodeDir() string     { return filepath.Join(Root(), "nodejs") }
+
+// DownloadsCache is where installer archives wait for extraction. It lives
+// in the OS temp area on purpose: it is a cache, never user data, and a
+// portable environment should not carry hundreds of megabytes of zips
+// around.
+func DownloadsCache() string {
+	return filepath.Join(os.TempDir(), "kitodock-cache")
+}
