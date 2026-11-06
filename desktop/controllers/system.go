@@ -7,6 +7,8 @@ import (
 	"kitodock/internal/clipboard"
 	"kitodock/internal/config"
 	"kitodock/internal/i18n"
+	"kitodock/internal/netports"
+	"kitodock/internal/sysmetrics"
 	"kitodock/internal/version"
 )
 
@@ -24,14 +26,16 @@ func NewSystem(cfg *config.Store, bus *EventBus) *System {
 // InstallCatalogues parses the embedded catalogues and installs them as the
 // global bundle every backend string renders against. The composition root
 // calls it before anything else can produce a message, so no code path ever
-// runs with an uninstalled bundle outside of tests.
-func (s *System) InstallCatalogues(fsys fs.FS) {
+// runs with an uninstalled bundle outside of tests. It is a free function on
+// purpose: a bound method would hand the frontend a callable that mutates
+// global language state.
+func InstallCatalogues(fsys fs.FS, initialLanguage func() string) {
 	bundle, err := i18n.Load(fsys, "langs")
 	if err != nil {
 		panic("load translation catalogues: " + err.Error())
 	}
 	i18n.SetGlobal(bundle)
-	i18n.SetActive(s.currentLanguage())
+	i18n.SetActive(initialLanguage())
 }
 
 // AppVersion is the build version, injected via -ldflags at release time.
@@ -101,4 +105,48 @@ func WatchLanguageFor(ctx context.Context, cfg *config.Store, bus *EventBus) {
 		i18n.SetActive(code)
 		bus.Emit(EvLanguageChanged, code)
 	})
+}
+
+// PortView is one listening socket in the ports panel.
+type PortView struct {
+	Port uint16 `json:"port"`
+	Addr string `json:"addr"`
+	PID  uint32 `json:"pid"`
+	// Process is the owning image name; killing stays restricted to it.
+	Process string `json:"process"`
+}
+
+// ListPorts is every TCP listener right now.
+func (s *System) ListPorts() []PortView {
+	listeners, err := netports.Listeners()
+	if err != nil {
+		return []PortView{}
+	}
+	out := make([]PortView, 0, len(listeners))
+	for _, l := range listeners {
+		out = append(out, PortView{Port: l.Port, Addr: l.Addr, PID: l.PID, Process: netports.ProcessName(l.PID)})
+	}
+	return out
+}
+
+// KillPort frees a port — but only from processes the stack owns: the
+// allowlist is fixed here, not negotiable from the UI.
+func (s *System) KillPort(port uint16) error {
+	return netports.KillPort(port, stackProcessImages()...)
+}
+
+// stackProcessImages is the kill allowlist: binaries the environment
+// installs and runs. Nothing else on the machine is ever a target.
+func stackProcessImages() []string {
+	return []string{
+		"nginx.exe", "caddy.exe", "mysqld.exe", "postgres.exe",
+		"redis-server.exe", "mailpit.exe",
+		"php.exe", "php-cgi.exe", "node.exe", "bun.exe",
+	}
+}
+
+// GetSystemMetrics is one machine sample; the shell also streams
+// EvSysMetrics periodically.
+func (s *System) GetSystemMetrics() sysmetrics.Sample {
+	return sysmetrics.Collect()
 }

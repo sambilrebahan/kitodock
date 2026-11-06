@@ -24,6 +24,19 @@ const (
 	// SetLanguage locally and by the config watcher when another Kitodock
 	// process changed it.
 	EvLanguageChanged = "language:changed"
+	// EvServiceStatus carries the full services snapshot.
+	EvServiceStatus = "service:status"
+	// EvServiceError reports a service that died or refused to start;
+	// payload may carry a "redist" download URL.
+	EvServiceError = "service:error"
+	// EvInstallProgress streams download/extract heartbeats.
+	EvInstallProgress = "install:progress"
+	// EvInstallDone reports an install finishing (ok or error).
+	EvInstallDone = "install:done"
+	// EvStackChanged carries the dashboard-visibility map.
+	EvStackChanged = "stack:changed"
+	// EvSysMetrics carries a periodic machine sample.
+	EvSysMetrics = "sys:metrics"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

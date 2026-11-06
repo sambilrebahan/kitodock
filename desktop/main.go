@@ -1,11 +1,13 @@
 package main
 
-// Kitodock desktop entry point. One binary, several process modes (GUI today;
-// mcp, agent hooks, --cron-run, --terminal-window and --command-bar join in
-// later phases — see docs/02-arsitektur-kitodock.md §8).
+// Kitodock desktop entry point. One binary, several process modes (GUI
+// today; mcp, agent hooks, --cron-run, --terminal-window and --command-bar
+// join in later phases — see docs/02-arsitektur-kitodock.md §8).
 
 import (
 	"embed"
+	"fmt"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -19,10 +21,27 @@ var assets embed.FS
 //go:embed all:langs
 var langs embed.FS
 
+//go:embed build/windows/icon.ico
+var trayIcon []byte
+
+// skipElevationEnv lets CI and dev shells run the shell without a UAC
+// round-trip; services that need the hosts file or low ports will simply
+// say so when they get there.
+const skipElevationEnv = "KITODOCK_SKIP_ELEVATE"
+
 func main() {
-	// Phase 0 runs the GUI only. Non-GUI modes arrive with their phases and
+	// Phase 1 runs the GUI only. Non-GUI modes arrive with their phases and
 	// must stay cheap: no manager initialization, no window.
-	app := NewApp()
+	if os.Getenv(skipElevationEnv) == "" {
+		if relaunched, err := relaunchElevated(os.Args); err != nil {
+			fmt.Fprintln(os.Stderr, "kitodock:", err)
+			os.Exit(1)
+		} else if relaunched {
+			return
+		}
+	}
+
+	app := NewApp(trayIcon)
 
 	err := wails.Run(&options.App{
 		Title:     "Kitodock",
@@ -43,6 +62,8 @@ func main() {
 		},
 		Bind: []interface{}{
 			app.System,
+			app.Services,
+			app.Installer,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,
