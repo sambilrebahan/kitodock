@@ -12,6 +12,10 @@
     "notifications": {
       "unsupportedSchema": "versi skema riwayat notifikasi {{version}} tidak didukung",
       "decodeFailed": "riwayat notifikasi gagal didekode (menyisihkan salinannya juga gagal: {{renameError}})"
+    },
+    "services": {
+      "groupConflict": "{{other}} sedang berjalan — hentikan dulu (keduanya berbagi satu port)",
+      "notInstalled": "{{name}} belum terpasang — cari di Pustaka / Alat"
     }
   },
   "nav": {
@@ -38,6 +42,124 @@
   "page": {
     "placeholder": "Bagian ini hadir pada fase {{phase}}."
   },
+  "services": {
+    "names": {
+      "nginx": "nginx",
+      "caddy": "Caddy",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL",
+      "redis": "Redis",
+      "mailpit": "Mailpit"
+    },
+    "state": {
+      "running": "Berjalan",
+      "stopped": "Berhenti",
+      "notInstalled": "Belum terpasang"
+    },
+    "action": {
+      "start": "Nyalakan",
+      "stop": "Hentikan",
+      "logs": "Log"
+    },
+    "startAll": "Nyalakan semua",
+    "stopAll": "Hentikan semua",
+    "failed": "{{name}} berhenti sendiri",
+    "stackChanged": "Daftar layanan dasbor diperbarui"
+  },
+  "dashboard": {
+    "title": "Dasbor",
+    "subtitle": "Stack lokal Anda, satu klik saja",
+    "metrics": {
+      "title": "Mesin ini",
+      "cpu": "CPU",
+      "ram": "Memori",
+      "disk": "Disk (C:)"
+    },
+    "noServices": {
+      "title": "Belum ada yang bisa ditampilkan",
+      "body": "Pasang layanan pertama Anda dari Pustaka / Alat, atau tampilkan yang disembunyikan di sini."
+    },
+    "bootstrap": {
+      "title": "Siapkan stack pemula",
+      "body": "nginx, MySQL, dan Mailpit: diunduh, dipasang, lalu dinyalakan. Ini berjalan di latar belakang — pantau kemajuannya di Pustaka / Alat.",
+      "button": "Ambil stack pemula",
+      "working": "Menyiapkan…",
+      "done": "Stack pemula siap"
+    }
+  },
+  "downloads": {
+    "title": "Pustaka / Alat",
+    "subtitle": "Semua terpasang ke folder environment ini — tidak menyentuh sistem Anda.",
+    "kind": {
+      "web-server": "Server web",
+      "database": "Basis data",
+      "cache": "Cache",
+      "mail": "Surat",
+      "runtime": "Runtime",
+      "tool": "Alat"
+    },
+    "action": {
+      "install": "Pasang",
+      "installing": "Memasang…",
+      "installed": "Terpasang",
+      "openPage": "Buka halaman unduhan",
+      "fromFile": "Pasang dari berkas…"
+    },
+    "manualHint": "Penyedia ini memblokir unduhan langsung. Ambil arsipnya dari halaman mereka, lalu pasang dari berkas.",
+    "showOnDashboard": "Tampilkan di dasbor",
+    "failed": "{{id}} {{version}}: {{reason}}"
+  },
+  "sources": {
+    "names": {
+      "nginx": "nginx",
+      "caddy": "Caddy",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL",
+      "redis": "Redis",
+      "mailpit": "Mailpit",
+      "composer": "Composer",
+      "php85": "PHP 8.5",
+      "php84": "PHP 8.4",
+      "php83": "PHP 8.3",
+      "node24": "Node.js 24 LTS"
+    }
+  },
+  "logs": {
+    "title": "Log {{name}}",
+    "empty": "Belum ada keluaran.",
+    "close": "Tutup"
+  },
+  "ports": {
+    "title": "Port yang mendengarkan",
+    "empty": "Tidak ada yang mendengarkan.",
+    "kill": "Bebaskan port ini",
+    "killConfirmTitle": "Bebaskan port {{port}}?",
+    "killConfirmBody": "Mengakhiri proses pemegang port. Hanya layanan yang dipasang environment ini yang bisa ditargetkan.",
+    "close": "Tutup"
+  },
+  "vc": {
+    "title": "Visual C++ Redistributable belum ada",
+    "body": "Sebuah layanan membutuhkan Visual C++ Redistributable sebelum bisa menyala. Unduh dan pasang, lalu nyalakan layanan itu lagi.",
+    "download": "Buka halaman unduhan"
+  },
+  "dialog": {
+    "confirm": "Konfirmasi",
+    "cancel": "Batal",
+    "ok": "OKE",
+    "save": "Simpan",
+    "close": "Tutup",
+    "yes": "Ya",
+    "no": "Tidak"
+  },
+  "common": {
+    "loading": "Memuat…",
+    "retry": "Coba lagi"
+  },
+  "errorBoundary": {
+    "title": "Terjadi kesalahan",
+    "description": "Galat tak terduga terjadi saat merender tampilan ini.",
+    "reload": "Muat ulang"
+  },
   "settings": {
     "title": "Pengaturan",
     "appearance": {
@@ -59,21 +181,13 @@
       "needsReview": "diterjemahkan mesin — reviu penutur asli ditunggu"
     }
   },
-  "dialog": {
-    "confirm": "Konfirmasi",
-    "cancel": "Batal",
-    "ok": "OKE",
-    "save": "Simpan",
-    "close": "Tutup",
-    "yes": "Ya",
-    "no": "Tidak"
-  },
-  "common": {
-    "loading": "Memuat…"
-  },
-  "errorBoundary": {
-    "title": "Terjadi kesalahan",
-    "description": "Galat tak terduga terjadi saat merender tampilan ini.",
-    "reload": "Muat ulang"
+  "tray": {
+    "services": "Layanan",
+    "startAll": "Nyalakan semuanya",
+    "stopAll": "Hentikan semuanya",
+    "show": "Buka Kitodock",
+    "quit": "Keluar",
+    "start": "Nyalakan",
+    "stop": "Hentikan"
   }
 }

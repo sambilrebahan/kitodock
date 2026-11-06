@@ -74,6 +74,8 @@ Fase 2).
 
 > **Progress**: Fase 0 **selesai** 2026-11-06 — lihat [`docs/progress/fase-0.md`](docs/progress/fase-0.md)
 > (verifikasi, keputusan, penyimpangan, dan langkah manual tersisa).
+> **Fase 1 selesai** 2026-11-07 — lihat [`docs/progress/fase-1.md`](docs/progress/fase-1.md)
+> (services+installer+tray+dasbor; live chain nginx terverifikasi; audit 8,8%/0 komentar identik).
 
 ## 5. Estimasi Effort Relatif
 

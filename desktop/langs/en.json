@@ -12,6 +12,10 @@
     "notifications": {
       "unsupportedSchema": "unsupported notification history schema version {{version}}",
       "decodeFailed": "notification history could not be decoded (setting the copy aside also failed: {{renameError}})"
+    },
+    "services": {
+      "groupConflict": "{{other}} is already running — stop it first (they share one port)",
+      "notInstalled": "{{name}} is not installed yet — find it under Libs / Tools"
     }
   },
   "nav": {
@@ -38,6 +42,124 @@
   "page": {
     "placeholder": "This section arrives in phase {{phase}}."
   },
+  "services": {
+    "names": {
+      "nginx": "nginx",
+      "caddy": "Caddy",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL",
+      "redis": "Redis",
+      "mailpit": "Mailpit"
+    },
+    "state": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "notInstalled": "Not installed"
+    },
+    "action": {
+      "start": "Start",
+      "stop": "Stop",
+      "logs": "Logs"
+    },
+    "startAll": "Start all",
+    "stopAll": "Stop all",
+    "failed": "{{name}} stopped on its own",
+    "stackChanged": "Dashboard services updated"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Your local stack, one click away",
+    "metrics": {
+      "title": "This machine",
+      "cpu": "CPU",
+      "ram": "Memory",
+      "disk": "Disk (C:)"
+    },
+    "noServices": {
+      "title": "Nothing to show yet",
+      "body": "Install your first services from Libs / Tools, or enable the ones you hide here."
+    },
+    "bootstrap": {
+      "title": "Set up the starter stack",
+      "body": "nginx, MySQL and Mailpit: downloaded, installed and started. This runs in the background — watch Libs / Tools for progress.",
+      "button": "Get the starter stack",
+      "working": "Setting up…",
+      "done": "Starter stack ready"
+    }
+  },
+  "downloads": {
+    "title": "Libs / Tools",
+    "subtitle": "Everything installs into this environment's folder — nothing touches your system.",
+    "kind": {
+      "web-server": "Web servers",
+      "database": "Databases",
+      "cache": "Caches",
+      "mail": "Mail",
+      "runtime": "Runtimes",
+      "tool": "Tools"
+    },
+    "action": {
+      "install": "Install",
+      "installing": "Installing…",
+      "installed": "Installed",
+      "openPage": "Open download page",
+      "fromFile": "Install from file…"
+    },
+    "manualHint": "This vendor blocks direct downloads. Grab the archive from their page, then install from the file.",
+    "showOnDashboard": "Show on dashboard",
+    "failed": "{{id}} {{version}}: {{reason}}"
+  },
+  "sources": {
+    "names": {
+      "nginx": "nginx",
+      "caddy": "Caddy",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL",
+      "redis": "Redis",
+      "mailpit": "Mailpit",
+      "composer": "Composer",
+      "php85": "PHP 8.5",
+      "php84": "PHP 8.4",
+      "php83": "PHP 8.3",
+      "node24": "Node.js 24 LTS"
+    }
+  },
+  "logs": {
+    "title": "{{name}} logs",
+    "empty": "No output yet.",
+    "close": "Close"
+  },
+  "ports": {
+    "title": "Listening ports",
+    "empty": "Nothing is listening.",
+    "kill": "Free this port",
+    "killConfirmTitle": "Free port {{port}}?",
+    "killConfirmBody": "Ends the process holding the port. Only services this environment installed can be targeted.",
+    "close": "Close"
+  },
+  "vc": {
+    "title": "Missing Visual C++ Redistributable",
+    "body": "A service needs the Visual C++ Redistributable before it can start. Download and install it, then start the service again.",
+    "download": "Open the download page"
+  },
+  "dialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "save": "Save",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Retry"
+  },
+  "errorBoundary": {
+    "title": "Something broke",
+    "description": "An unexpected error occurred while rendering this view.",
+    "reload": "Reload"
+  },
   "settings": {
     "title": "Settings",
     "appearance": {
@@ -59,21 +181,13 @@
       "needsReview": "machine-translated — native review welcome"
     }
   },
-  "dialog": {
-    "confirm": "Confirm",
-    "cancel": "Cancel",
-    "ok": "OK",
-    "save": "Save",
-    "close": "Close",
-    "yes": "Yes",
-    "no": "No"
-  },
-  "common": {
-    "loading": "Loading…"
-  },
-  "errorBoundary": {
-    "title": "Something broke",
-    "description": "An unexpected error occurred while rendering this view.",
-    "reload": "Reload"
+  "tray": {
+    "services": "Services",
+    "startAll": "Start everything",
+    "stopAll": "Stop everything",
+    "show": "Open Kitodock",
+    "quit": "Quit",
+    "start": "Start",
+    "stop": "Stop"
   }
 }
