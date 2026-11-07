@@ -76,6 +76,9 @@ Fase 2).
 > (verifikasi, keputusan, penyimpangan, dan langkah manual tersisa).
 > **Fase 1 selesai** 2026-11-07 — lihat [`docs/progress/fase-1.md`](docs/progress/fase-1.md)
 > (services+installer+tray+dasbor; live chain nginx terverifikasi; audit 8,8%/0 komentar identik).
+> **Fase 2a selesai** 2026-11-07 — lihat [`docs/progress/fase-2a.md`](docs/progress/fase-2a.md)
+> (php/node multi-versi, deteksi+mesin constraint, vhost 3 server+CA+hosts, halaman Projects;
+> live test PHP-via-nginx; audit 7,8%/0 komentar).
 
 ## 5. Estimasi Effort Relatif
 
