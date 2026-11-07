@@ -1,5 +1,9 @@
 {
-  "$meta": { "code": "id", "name": "Indonesian", "nativeName": "Bahasa Indonesia" },
+  "$meta": {
+    "code": "id",
+    "name": "Indonesian",
+    "nativeName": "Bahasa Indonesia"
+  },
   "backend": {
     "notifications": {
       "historyMalformed": "Berkas riwayat notifikasi tidak terbaca dan disisihkan apa adanya; riwayat dimulai ulang."
@@ -106,8 +110,7 @@
       "fromFile": "Pasang dari berkas…"
     },
     "manualHint": "Penyedia ini memblokir unduhan langsung. Ambil arsipnya dari halaman mereka, lalu pasang dari berkas.",
-    "showOnDashboard": "Tampilkan di dasbor",
-    "failed": "{{id}} {{version}}: {{reason}}"
+    "showOnDashboard": "Tampilkan di dasbor"
   },
   "sources": {
     "names": {

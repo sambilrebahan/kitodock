@@ -1,7 +1,25 @@
 # Progress — Fase 1: Services & Installer
 
-> Status: **SELESAI** (2026-11-07) · Implementasi mandiri penuh; LaraEnv
-> hanya referensi perilaku. Audit originalitas di §4.
+> Status: **SELESAI** (2026-11-07, re-audit 2026-11-07) · Implementasi
+> mandiri penuh; LaraEnv hanya referensi perilaku. Audit originalitas §4.
+
+## 0. Re-audit DoD (2026-11-07, setelah penutupan)
+
+Pemilik meminta pengecekan ulang sebelum Fase 2. Temuan dan penutupannya:
+
+| Temuan audit | Penutupan |
+| --- | --- |
+| CI di GitHub belum dikonfirmasi | ✅ Actions run #1 & #2 (tip 2db8d26) **success** — sekaligus menutup item tertunda Fase 0 |
+| Label tray di-mutasi dari goroutine watcher | ✅ Diverifikasi aman: `systray.MenuItem.update` berkunci global dan terdokumentasi goroutine-safe |
+| **Belum ada layanan nyata melalui supervisor** (live nginx lama memakai exec langsung) | ✅ Test live baru `desktop/stack_live_test.go`: redis & mailpit **install → Start (first-run) → listener terbukti via netports → Stop → port bebas, nol proses bocor** |
+| Stop bisa diam-diam gagal (mailpit run pertama menyisakan orphan) | ✅ `stopLocked` diperkuat: killTree → tunggu exit per-replika (3 dtk) → fallback `killImage` milik-sendiri → tunggu lagi; suite services 2× run hijau |
+| CDN MySQL menolak UA "kitodock" (403; curl/Go-default lolos — WAF per-nama) | ✅ Field `PlainUA` pada Source: host tersebut dikirim tanpa UA kustom |
+| **Bug basedir MySQL**: `dirOf(exe)` = `\mysql\bin` → basedir/datadir salah (errmsg.sys under `bin\`, data di `bin\data`) | ✅ Root dihitung dua tingkat dari exe; data directory kini tercipta di `\mysql\data` — dibuktikan live |
+| Modal VC++ tanpa tombol unduh (kunci `vc.download` nganggur) | ✅ Alert kini memakai `confirmLabel: vc.download` → `BrowserOpenURL(redist)` |
+| Judul alert gagal-install pakai template cacat | ✅ Judul jadi `<id> <version>`; kunci mati `downloads.failed` dihapus dari kedua katalog |
+| Test live mengecek "port 3306 listening" tanpa kepemilikan | ✅ Kepemilikan PID diperiksa: **mesin ini menjalankan MySQL layanan-sistem di :3306** → serving-MySQL SKIP jujur (inisialisasi first-run tetap TERBUKTI: data dir dibuat mysqld kita); konflik port vs layanan sistem = utang Fase 2 |
+
+Hasil akhir re-audit: 14 paket go test ✅ · vet ✅ · frontend 12/12+lint+build ✅ · wails build ✅ · smoke ✅ · nol proses bocor (nginx/redis/mailpit) · audit originalitas **8,6%, 0 komentar identik**.
 
 ## 1. Yang dibangun
 

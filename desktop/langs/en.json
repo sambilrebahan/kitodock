@@ -1,5 +1,9 @@
 {
-  "$meta": { "code": "en", "name": "English", "nativeName": "English" },
+  "$meta": {
+    "code": "en",
+    "name": "English",
+    "nativeName": "English"
+  },
   "backend": {
     "notifications": {
       "historyMalformed": "The notification history file was unreadable and has been set aside untouched; history starts fresh."
@@ -106,8 +110,7 @@
       "fromFile": "Install from file…"
     },
     "manualHint": "This vendor blocks direct downloads. Grab the archive from their page, then install from the file.",
-    "showOnDashboard": "Show on dashboard",
-    "failed": "{{id}} {{version}}: {{reason}}"
+    "showOnDashboard": "Show on dashboard"
   },
   "sources": {
     "names": {

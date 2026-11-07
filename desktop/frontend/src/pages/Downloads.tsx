@@ -71,7 +71,7 @@ export default function Downloads() {
       refresh();
       if (!done.ok && done.error) {
         void dialogs.alert({
-          title: t("downloads.failed", { id: done.id, version: done.version, reason: "" }).trim(),
+          title: `${done.id} ${done.version}`,
           message: done.error,
         });
       }
