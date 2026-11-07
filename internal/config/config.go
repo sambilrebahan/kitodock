@@ -40,14 +40,19 @@ type Stack struct {
 	Enabled map[string]bool `json:"enabled"`
 }
 
-// Projects holds the projects-related preferences. Per-project overrides
-// (runtime picks, SSL, tags, …) arrive with the projects phase.
+// Projects is the saved per-project and workspace preferences block.
 type Projects struct {
 	// TLD is the suffix project hostnames get ("shop." + TLD).
 	TLD string `json:"tld"`
 	// Root is the folder projects are listed from. It defaults to the
 	// environment's own www/ but may point anywhere the user keeps code.
 	Root string `json:"root"`
+	// SSL records which projects serve HTTPS.
+	SSL map[string]bool `json:"ssl,omitempty"`
+	// PhpVersions records per-project PHP series overrides ("8.4").
+	PhpVersions map[string]string `json:"phpVersions,omitempty"`
+	// NodeVersions records per-project Node.js overrides.
+	NodeVersions map[string]string `json:"nodeVersions,omitempty"`
 }
 
 // Config is the whole document. Fields with omitempty are "unset means
