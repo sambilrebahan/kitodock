@@ -42,6 +42,10 @@ const (
 	EvProjectChanged = "project:changed"
 	// EvProjectError reports a serving failure for a project.
 	EvProjectError = "project:error"
+	// EvDevStatus carries one dev server's state.
+	EvDevStatus = "devserver:status"
+	// EvDoctorOutput streams fix progress lines.
+	EvDoctorOutput = "doctor:output"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

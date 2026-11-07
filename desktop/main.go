@@ -65,6 +65,8 @@ func main() {
 			app.Services,
 			app.Installer,
 			app.Projects,
+			app.Dev,
+			app.Doctor,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,

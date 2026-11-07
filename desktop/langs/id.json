@@ -223,5 +223,60 @@
     "trust": "Impor ke Windows",
     "trustFailed": "Impor membutuhkan aplikasi berjalan sebagai administrator.",
     "finger": "Sidik jari"
+  },
+  "dev": {
+    "start": "Nyalakan dev server",
+    "stop": "Hentikan dev server",
+    "logs": "Log dev server",
+    "running": "Dev server berjalan di :{{port}}",
+    "stopped": "Dev server berhenti",
+    "noScript": "Tidak ada skrip dev/start di package.json"
+  },
+  "doctor": {
+    "title": "Dokter Situs",
+    "diagnose": "Diagnosis",
+    "diagnoseAll": "Diagnosis semua",
+    "fix": "Perbaiki",
+    "fixing": "Memperbaiki…",
+    "severity": {
+      "ok": "OK",
+      "failed": "Gagal",
+      "warning": "Peringatan",
+      "optional": "Opsional",
+      "not-checked": "Tak diperiksa"
+    },
+    "checks": {
+      "doc_root": "Root dokumen",
+      "runtime": "Runtime",
+      "vendor": "Dependensi Composer",
+      "node_modules": "Dependensi Node",
+      "env_file": "Berkas .env",
+      "app_key": "APP_KEY",
+      "storage_link": "Tautan storage",
+      "vhost": "Virtual host",
+      "hosts": "Entri hosts",
+      "php_fpm": "Pool PHP-FPM",
+      "database": "Basis data",
+      "migrations": "Migrasi"
+    }
+  },
+  "creator": {
+    "title": "Proyek baru",
+    "name": "Nama proyek",
+    "kind": {
+      "laravel": "Laravel",
+      "wordpress": "WordPress",
+      "git": "Git clone",
+      "vite": "Vite",
+      "next": "Next.js",
+      "nuxt": "Nuxt",
+      "astro": "Astro",
+      "blank": "Folder kosong"
+    },
+    "gitURL": "URL Git",
+    "pm": "Manajer paket",
+    "creating": "Membuat…",
+    "created": "Proyek dibuat",
+    "failed": "Pembuatan gagal"
   }
 }

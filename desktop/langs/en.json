@@ -223,5 +223,60 @@
     "trust": "Import into Windows",
     "trustFailed": "Importing needs the app to run as administrator.",
     "finger": "Fingerprint"
+  },
+  "dev": {
+    "start": "Start dev server",
+    "stop": "Stop dev server",
+    "logs": "Dev server logs",
+    "running": "Dev server running on :{{port}}",
+    "stopped": "Dev server stopped",
+    "noScript": "No dev or start script in package.json"
+  },
+  "doctor": {
+    "title": "Site Doctor",
+    "diagnose": "Diagnose",
+    "diagnoseAll": "Diagnose all",
+    "fix": "Fix",
+    "fixing": "Fixing…",
+    "severity": {
+      "ok": "OK",
+      "failed": "Failed",
+      "warning": "Warning",
+      "optional": "Optional",
+      "not-checked": "Not checked"
+    },
+    "checks": {
+      "doc_root": "Document root",
+      "runtime": "Runtime",
+      "vendor": "Composer dependencies",
+      "node_modules": "Node dependencies",
+      "env_file": ".env file",
+      "app_key": "APP_KEY",
+      "storage_link": "Storage link",
+      "vhost": "Virtual host",
+      "hosts": "Hosts entry",
+      "php_fpm": "PHP-FPM pool",
+      "database": "Database",
+      "migrations": "Migrations"
+    }
+  },
+  "creator": {
+    "title": "New project",
+    "name": "Project name",
+    "kind": {
+      "laravel": "Laravel",
+      "wordpress": "WordPress",
+      "git": "Git clone",
+      "vite": "Vite",
+      "next": "Next.js",
+      "nuxt": "Nuxt",
+      "astro": "Astro",
+      "blank": "Blank folder"
+    },
+    "gitURL": "Git URL",
+    "pm": "Package manager",
+    "creating": "Creating…",
+    "created": "Project created",
+    "failed": "Creation failed"
   }
 }

@@ -28,6 +28,8 @@ type App struct {
 	Services  *controllers.Services
 	Installer *controllers.Installer
 	Projects  *controllers.Projects
+	Dev       *controllers.Dev
+	Doctor    *controllers.Doctor
 
 	serving *serving
 
@@ -57,6 +59,8 @@ func NewApp(trayIcon []byte) *App {
 	WireLocalCA()
 	serving := newServing(cfg, stack, phpMgr, realHostsFile())
 	projectsCtrl := controllers.NewProjects(bus, cfg, serving, phpMgr, nodeMgr)
+	devCtrl := controllers.NewDev(bus, serving)
+	doctorCtrl := controllers.NewDoctor(bus, serving.DoctorTarget)
 
 	app := &App{
 		cfg:       cfg,
@@ -66,6 +70,8 @@ func NewApp(trayIcon []byte) *App {
 		Services:  servicesCtrl,
 		Installer: installer,
 		Projects:  projectsCtrl,
+		Dev:       devCtrl,
+		Doctor:    doctorCtrl,
 		serving:   serving,
 		trayIcon:  trayIcon,
 	}

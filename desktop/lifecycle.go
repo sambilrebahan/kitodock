@@ -101,6 +101,7 @@ func (a *App) trayCallbacks() TrayCallbacks {
 func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	quitting.Store(true)
+	a.Dev.StopAllDev()
 	a.stack.StopAll()
 	StopTray()
 	a.ctx = nil

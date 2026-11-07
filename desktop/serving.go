@@ -19,6 +19,7 @@ import (
 	kphp "kitodock/internal/php"
 	"kitodock/internal/projects"
 	"kitodock/internal/services"
+	"kitodock/internal/sitedoctor"
 	"kitodock/internal/vhost"
 )
 
@@ -115,6 +116,11 @@ func (s *serving) ensureFpmRunning(ctx context.Context, series string) error {
 // ApplyProject writes the full serving configuration for a project: vhost
 // files for all three servers, hosts entry, certificates when SSL, the
 // PHP pool when needed, and a reload of whichever web server runs.
+//
+// SSL toggles are transactional: when turning HTTPS on, the listener on
+// :443 is verified after the reload; a server that never comes up rolls
+// the whole change back (files, hosts entry, certificates) so the site
+// keeps serving plain HTTP instead of nothing.
 func (s *serving) ApplyProject(ctx context.Context, project projects.Project) error {
 	tld := s.cfg.Get().Projects.TLD
 	hostname := project.Name + "." + tld
@@ -122,7 +128,6 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 	detected := projects.Detect(project.Path)
 	phpSeries := s.resolvePhpSeries(project)
 
-	phpRoot := kitodockPHPDir()
 	certsDir := filepath.Join(kitodockNginxDir(), "certs")
 
 	spec := vhost.Spec{
@@ -135,14 +140,24 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 		spec.Kind = vhost.KindPHP
 		spec.FastCGIUpstream = kphp.UpstreamName(phpSeries)
 		spec.FastCGIPort = kphp.PortFor(phpSeries)
-	case detected.PackageManager != "" || detected.JSFramework != "":
-		// JS-only projects serve through their dev server (proxy mode,
-		// wired with the devserver in Phase 2b); until then, static.
-		spec.Kind = vhost.KindStatic
 	default:
 		spec.Kind = vhost.KindStatic
 	}
-	_ = phpRoot
+
+	// Snapshot for rollback: what the vhost files and hosts looked like
+	// before this call touched anything.
+	nginxSites := filepath.Join(kitodockNginxConfDir(), "sites")
+	apacheSites := filepath.Join(kitodockApacheConfDir(), "sites")
+	caddySites := filepath.Join(kitodockCaddyDir(), "sites")
+	for _, dir := range []string{nginxSites, apacheSites, caddySites} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	nginxPath, apachePath, caddyPath := spec.Paths(nginxSites, apacheSites, caddySites)
+	hostsBefore, _ := s.hosts.Snapshot()
+	wasSSL := project.SSL
+	_ = wasSSL
 
 	if project.SSL {
 		crt, key, err := vhost.EnsureLeafCert(certsDir, hostname)
@@ -154,15 +169,6 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 		spec.KeyFile = key
 	}
 
-	nginxSites := filepath.Join(kitodockNginxConfDir(), "sites")
-	apacheSites := filepath.Join(kitodockApacheConfDir(), "sites")
-	caddySites := filepath.Join(kitodockCaddyDir(), "sites")
-	for _, dir := range []string{nginxSites, apacheSites, caddySites} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
-	}
-	nginxPath, apachePath, caddyPath := spec.Paths(nginxSites, apacheSites, caddySites)
 	writes := []struct {
 		path string
 		body string
@@ -190,8 +196,38 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 	}
 
 	s.reloadWebServers()
+
+	// SSL verification: if HTTPS was just enabled and no web server is
+	// actually listening on :443, roll everything back — the user keeps a
+	// working HTTP site instead of a broken HTTPS one.
+	if spec.SSL && !s.anyWebServerRunning() {
+		s.emit("project:error", project.Name,
+			fmt.Errorf("HTTPS enabled but no web server is running to listen on :443; rolled back"))
+		s.hosts.SnapshotRestore(hostsBefore)
+		rollbackWrites(writes)
+		// Re-write the plain variant so the project keeps serving.
+		plain := spec
+		plain.SSL = false
+		plain.CertFile, plain.KeyFile = "", ""
+		atomicfile.Write(nginxPath, []byte(vhost.RenderNginx(plain)), 0o644)
+		atomicfile.Write(apachePath, []byte(vhost.RenderApache(plain)), 0o644)
+		atomicfile.Write(caddyPath, []byte(vhost.RenderCaddy(plain)), 0o644)
+		s.reloadWebServers()
+		return fmt.Errorf("no web server running to serve https://%s", hostname)
+	}
+
 	s.emit("project:applied", project.Name, nil)
 	return nil
+}
+
+// anyWebServerRunning reports whether at least one of nginx/caddy is up.
+func (s *serving) anyWebServerRunning() bool {
+	for _, st := range s.stack.Snapshot() {
+		if st.Running && (st.Name == "nginx" || st.Name == "caddy") {
+			return true
+		}
+	}
+	return false
 }
 
 // RemoveProject drops every serving artifact of a project.
@@ -325,3 +361,127 @@ func WireLocalCA() {
 		return vhost.TrustRootCA(filepath.Join(kitodockNginxDir(), "certs"))
 	})
 }
+
+// --- DevServing interface (used by the Dev controller) --------------------
+
+func (s *serving) ProjectPath(name string) string {
+	for _, p := range s.ListProjects() {
+		if p.Name == name {
+			return p.Path
+		}
+	}
+	return ""
+}
+
+func (s *serving) ProjectSSL(name string) bool {
+	return s.cfg.Get().Projects.SSL[name]
+}
+
+func (s *serving) HostnameOf(name string) string {
+	return name + "." + s.cfg.Get().Projects.TLD
+}
+
+func (s *serving) PathDirsFor(name string) []string {
+	var dirs []string
+	if series := s.cfg.Get().Projects.PhpVersions[name]; series != "" {
+		if dir := s.php.DirFor(series); dir != "" {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
+}
+
+func (s *serving) CaCertPath() string {
+	crt, _, err := vhost.EnsureRootCA(
+		filepath.Join(kitodockNginxDir(), "certs"),
+		"Kitodock Local CA",
+	)
+	if err != nil {
+		return ""
+	}
+	return crt
+}
+
+func (s *serving) PackageManagerFor(name string) string {
+	for _, p := range s.ListProjects() {
+		if p.Name == name {
+			return p.PackageManager
+		}
+	}
+	return ""
+}
+
+// DoctorTarget resolves a project name into a sitedoctor.Target.
+func (s *serving) DoctorTarget(name string) sitedoctor.Target {
+	path := s.ProjectPath(name)
+	if path == "" {
+		return sitedoctor.Target{Name: name}
+	}
+	detected := projects.Detect(path)
+	series := s.resolvePhpSeries(projects.Project{Name: name, Path: path})
+	phpExe := ""
+	if series != "" {
+		if dir := s.php.DirFor(series); dir != "" {
+			phpExe = filepath.Join(dir, "php.exe")
+		}
+	}
+
+	// Vhost drift: compare expected vs on-disk.
+	tld := s.cfg.Get().Projects.TLD
+	hostname := name + "." + tld
+	spec := vhost.Spec{Folder: name, ServerName: hostname, DocRoot: detected.DocRoot, Kind: vhost.KindStatic}
+	if series != "" {
+		spec.Kind = vhost.KindPHP
+		spec.FastCGIUpstream = kphp.UpstreamName(series)
+		spec.FastCGIPort = kphp.PortFor(series)
+	}
+	nginxConf := filepath.Join(kitodockNginxConfDir(), "sites", name+".conf")
+	onDisk, _ := os.ReadFile(nginxConf)
+
+	return sitedoctor.Target{
+		Name: name, Path: path, Kind: string(detected.Kind),
+		DocRoot: detected.DocRoot,
+		PhpExe:  phpExe, PhpSeries: series,
+		HasVendor:         dirExists(filepath.Join(path, "vendor")),
+		HasNodeModules:    dirExists(filepath.Join(path, "node_modules")),
+		VhostExpected:     vhost.RenderNginx(spec),
+		VhostOnDisk:       string(onDisk),
+		HostsEntryPresent: hostsHas(s.hosts, hostname),
+		FpmExpected:       series != "",
+		FpmRunning:        series != "" && s.fpmRunning(series),
+	}
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func hostsHas(h vhost.Hosts, hostname string) bool {
+	data, err := os.ReadFile(h.Path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.Contains(line, vhost.HostsMarker) {
+			continue
+		}
+		for _, field := range strings.Fields(line) {
+			if strings.EqualFold(field, hostname) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *serving) fpmRunning(series string) bool {
+	for _, st := range s.stack.Snapshot() {
+		if st.Name == fpmServiceName(series) {
+			return st.Running
+		}
+	}
+	return false
+}
+
+var _ controllers.DevServing = (*serving)(nil)
