@@ -420,8 +420,12 @@ func (m *Manager) stopLocked(name string) {
 	// a crash.
 	m.stopFlag[name] = true
 	var pids []int
-	if running {
+	var image string
+	if running && inst != nil {
 		pids = pidsOf(inst)
+		if def.Exe != nil {
+			image = baseName(def.Exe())
+		}
 	}
 	delete(m.running, name)
 	delete(m.crashes, name)
@@ -430,6 +434,24 @@ func (m *Manager) stopLocked(name string) {
 
 	for _, pid := range pids {
 		killTree(pid)
+	}
+	// A tree-kill can miss (first-launch AV scans, races with the OS): a
+	// stop that returns while the process lives would leave ports held.
+	// Wait for the exits we can observe, then sweep by image name — our
+	// own executable, nothing else.
+	if running && inst != nil {
+		survivors := false
+		for _, rep := range inst.replicas {
+			if !awaitReplicaExit(rep, 3*time.Second) {
+				survivors = true
+			}
+		}
+		if survivors && image != "" {
+			killImage(image)
+			for _, rep := range inst.replicas {
+				awaitReplicaExit(rep, 2*time.Second)
+			}
+		}
 	}
 	if ring != nil {
 		ring.append(name + " stopped")
@@ -652,5 +674,23 @@ func pump(pipe io.Reader, ring *ring) {
 		if err != nil {
 			return
 		}
+	}
+}
+
+// awaitReplicaExit reports whether the replica's process was reaped within
+// the budget. Polling instead of one long receive keeps the wait honest
+// about processes that died without our pipe noticing.
+func awaitReplicaExit(rep *replica, within time.Duration) bool {
+	deadline := time.Now().Add(within)
+	for {
+		select {
+		case <-rep.dead:
+			return true
+		default:
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
