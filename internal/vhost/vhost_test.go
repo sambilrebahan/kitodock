@@ -1,7 +1,6 @@
 package vhost
 
 import (
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
@@ -12,22 +11,30 @@ import (
 	"time"
 )
 
+// fixtureRoot keeps the real install root out of literal spelling: the
+// paths package's meta-test forbids hardcoding it anywhere else.
+const fixtureRoot = `D:\anywhere\demo`
+
 func phpSpec() Spec {
 	return Spec{
 		Folder:          "shop",
 		ServerName:      "shop.test",
-		DocRoot:         `C:\kitodock\www\shop\public`,
+		DocRoot:         fixtureRoot + `\www\shop\public`,
 		Kind:            KindPHP,
 		FastCGIUpstream: "php_8_4",
 		FastCGIPort:     9084,
 	}
 }
 
+func wantDocRootSlashed() string {
+	return `"` + filepath.ToSlash(fixtureRoot+`\www\shop\public`) + `"`
+}
+
 func TestNginxPhpShape(t *testing.T) {
 	conf := RenderNginx(phpSpec())
 	for _, want := range []string{
 		"server_name shop.test;",
-		`root "C:/kitodock/www/shop/public";`,
+		"root " + wantDocRootSlashed() + ";",
 		"try_files $uri $uri/ /index.php?$query_string;",
 		"fastcgi_pass php_8_4;",
 		"include fastcgi_params;",
@@ -67,8 +74,8 @@ func TestNginxProxyIsDualStackWithWebsockets(t *testing.T) {
 func TestSslVariantRendersBothListenersWithCerts(t *testing.T) {
 	spec := phpSpec()
 	spec.SSL = true
-	spec.CertFile = `C:\kitodock\nginx\certs\shop.test.crt`
-	spec.KeyFile = `C:\kitodock\nginx\certs\shop.test.key`
+	spec.CertFile = fixtureRoot + `\nginx\certs\shop.test.crt`
+	spec.KeyFile = fixtureRoot + `\nginx\certs\shop.test.key`
 
 	for name, conf := range map[string]string{
 		"nginx":  RenderNginx(spec),
@@ -103,7 +110,7 @@ func TestCaddyPlainDisablesAcme(t *testing.T) {
 func TestApachePhpUsesProxyFcgi(t *testing.T) {
 	conf := RenderApache(phpSpec())
 	for _, want := range []string{
-		`DocumentRoot "C:/kitodock/www/shop/public"`,
+		"DocumentRoot " + wantDocRootSlashed(),
 		"FallbackResource /index.php",
 		`SetHandler "proxy:fcgi://127.0.0.1:9084"`,
 	} {
@@ -152,8 +159,9 @@ func TestHostsEditorTouchesOnlyMarkedLines(t *testing.T) {
 
 func TestRootCAAndLeafChain(t *testing.T) {
 	dir := t.TempDir()
+	caName := "Kitodock Local CA (D:\\anywhere)"
 
-	crt, key, err := EnsureRootCA(dir, "Kitodock Local CA (C:\\kitodock)")
+	crt, key, err := EnsureRootCA(dir, caName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +173,7 @@ func TestRootCAAndLeafChain(t *testing.T) {
 	}
 
 	// Regeneration must not happen over an existing pair.
-	crt2, key2, err := EnsureRootCA(dir, "Kitodock Local CA (C:\\kitodock)")
+	crt2, key2, err := EnsureRootCA(dir, caName)
 	if err != nil || crt2 != crt || key2 != key {
 		t.Fatalf("EnsureRootCA not idempotent: %v %v", crt2, key2)
 	}
@@ -189,8 +197,6 @@ func TestRootCAAndLeafChain(t *testing.T) {
 	if time.Now().After(leaf.NotAfter) {
 		t.Fatal("leaf already expired")
 	}
-	sanHosts := append(append([]string{}, leaf.DNSNames...), "shop.test")
-	_ = sanHosts
 	found := false
 	for _, name := range leaf.DNSNames {
 		if name == "shop.test" || name == "*.test" {
@@ -279,5 +285,4 @@ func TestSpecPaths(t *testing.T) {
 		!strings.HasSuffix(caddy, filepath.Join("/c/s", "shop.caddy")) {
 		t.Fatalf("paths = %s | %s | %s", nginx, apache, caddy)
 	}
-	_ = rsa.GenerateKey // silence import when tests trim
 }
