@@ -37,6 +37,11 @@ const (
 	EvStackChanged = "stack:changed"
 	// EvSysMetrics carries a periodic machine sample.
 	EvSysMetrics = "sys:metrics"
+	// EvProjectChanged announces a project preference change (kind:
+	// ssl/php/tld) and asks the UI to refresh.
+	EvProjectChanged = "project:changed"
+	// EvProjectError reports a serving failure for a project.
+	EvProjectError = "project:error"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

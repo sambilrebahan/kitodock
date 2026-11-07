@@ -192,5 +192,36 @@
     "quit": "Quit",
     "start": "Start",
     "stop": "Stop"
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "One card per folder under your projects root — detected, served, remembered.",
+    "tld": "Domain",
+    "tldTitle": "Project domain",
+    "tldConfirmTitle": "Move every project to .{{tld}}?",
+    "tldConfirmBody": "Hosts entries, vhosts and certificates are rewritten for all projects. This takes a moment.",
+    "empty": {
+      "title": "No projects yet",
+      "body": "Drop a folder into your projects directory (www by default) and it appears here."
+    },
+    "sslOn": "Serve over HTTPS",
+    "sslOff": "Serve plain HTTP",
+    "rescan": "Re-apply this project's serving configuration",
+    "phpPickLabel": "PHP series",
+    "phpPickHelp": "Installed: {{series}}. Empty returns to automatic detection.",
+    "phpPickEmpty": "No PHP is installed yet — pick one up from Libs / Tools first.",
+    "phpUnknown": "\"{{series}}\" is not an installed PHP series.",
+    "phpInstallTip": "PHP {{series}} is available under Libs / Tools."
+  },
+  "ca": {
+    "title": "Local HTTPS authority",
+    "status": {
+      "none": "No local certificate authority yet — it is created the first time a project turns HTTPS on.",
+      "untrusted": "Present, but not trusted by Windows. Browsers will warn until it is imported.",
+      "trusted": "Present and trusted — https://*.{{tld}} opens without warnings."
+    },
+    "trust": "Import into Windows",
+    "trustFailed": "Importing needs the app to run as administrator.",
+    "finger": "Fingerprint"
   }
 }

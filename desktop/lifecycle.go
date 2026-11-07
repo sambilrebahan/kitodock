@@ -23,6 +23,7 @@ func (a *App) startup(ctx context.Context) {
 	a.bus.SetContext(ctx)
 	a.Services.SetContext(ctx)
 	a.Installer.SetContext(ctx)
+	a.Projects.SetContext(ctx)
 
 	// Language changes made by another Kitodock process arrive through the
 	// configuration file; the watcher blocks, so it runs on its own goroutine.
@@ -31,6 +32,10 @@ func (a *App) startup(ctx context.Context) {
 	// Processes a crashed run left behind must not hold ports when this run
 	// starts; sweep them before anything binds.
 	go a.stack.KillStrays()
+
+	// Self-heal every project's serving configuration (vhosts, hosts
+	// entries, certificates, php pools) after a move or partial failure.
+	go a.serving.Sweep(ctx)
 
 	// Stream what changed, both to the window and into the tray's labels.
 	go a.stack.Watch(ctx, 1500*time.Millisecond, func() {

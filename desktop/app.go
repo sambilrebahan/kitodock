@@ -11,7 +11,9 @@ import (
 
 	"kitodock/desktop/controllers"
 	"kitodock/internal/config"
+	knode "kitodock/internal/nodejs"
 	"kitodock/internal/paths"
+	kphp "kitodock/internal/php"
 	"kitodock/internal/services"
 )
 
@@ -25,6 +27,9 @@ type App struct {
 	System    *controllers.System
 	Services  *controllers.Services
 	Installer *controllers.Installer
+	Projects  *controllers.Projects
+
+	serving *serving
 
 	trayIcon []byte
 }
@@ -47,6 +52,12 @@ func NewApp(trayIcon []byte) *App {
 	controllers.InstallCatalogues(langs, system.GetLanguage)
 	servicesCtrl := controllers.NewServices(bus, cfg, stack, installer, recommendedStack)
 
+	phpMgr := kphp.New(paths.PHPDir())
+	nodeMgr := knode.New(paths.NodeDir())
+	WireLocalCA()
+	serving := newServing(cfg, stack, phpMgr, realHostsFile())
+	projectsCtrl := controllers.NewProjects(bus, cfg, serving, phpMgr, nodeMgr)
+
 	app := &App{
 		cfg:       cfg,
 		bus:       bus,
@@ -54,6 +65,8 @@ func NewApp(trayIcon []byte) *App {
 		System:    system,
 		Services:  servicesCtrl,
 		Installer: installer,
+		Projects:  projectsCtrl,
+		serving:   serving,
 		trayIcon:  trayIcon,
 	}
 	return app
