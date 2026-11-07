@@ -68,26 +68,26 @@ func caddyDefinition() services.Definition {
 }
 
 func mysqlDefinition() services.Definition {
+	// The exe lives in <root>\mysqlin; mysqld wants the basedir above it.
+	root := func() string { return filepath.Dir(dirOf(mysqlExePath())) }
 	return services.Definition{
 		Name:     "mysql",
 		LabelKey: "services.names.mysql",
 		Exe:      mysqlExePath,
 		Args: func() []string {
-			dir := dirOf(mysqlExePath()) // <root>\mysql
-			return []string{"--console", "--basedir=" + dir, "--datadir=" + filepath.Join(dir, "data")}
+			return []string{"--console", "--basedir=" + root(), "--datadir=" + filepath.Join(root(), "data")}
 		},
 		NeedsSetup: func() bool {
-			_, err := os.Stat(filepath.Join(dirOf(mysqlExePath()), "data", "mysql"))
+			_, err := os.Stat(filepath.Join(root(), "data", "mysql"))
 			return err != nil
 		},
 		Setup: func(ctx context.Context, log func(string)) error {
-			dir := dirOf(mysqlExePath())
 			return runSetupStep(ctx, log, "initialize MySQL data directory",
 				mysqlExePath(),
 				[]string{
 					"--initialize-insecure",
-					"--basedir=" + dir,
-					"--datadir=" + filepath.Join(dir, "data"),
+					"--basedir=" + root(),
+					"--datadir=" + filepath.Join(root(), "data"),
 				},
 				180*time.Second)
 		},
