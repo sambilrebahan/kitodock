@@ -39,8 +39,11 @@ func Catalog() []Source {
 		},
 		{
 			Kind: KindDatabase, ID: "mysql", Version: "8.0.43",
-			LabelKey:  "sources.names.mysql",
-			URL:       "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.43-winx64.zip",
+			LabelKey: "sources.names.mysql",
+			URL:      "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.43-winx64.zip",
+			// MySQL's CDN rejects agent names it does not recognize; the
+			// default Go agent passes.
+			PlainUA:   true,
 			Flatten:   true,
 			InstallTo: paths.MySQLDir,
 			ExeName:   "bin/mysqld.exe",

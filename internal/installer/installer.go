@@ -70,6 +70,11 @@ type Source struct {
 
 	// RedistURL overrides the VC++ download for this build.
 	RedistURL string
+
+	// PlainUA drops the identifying User-Agent for hosts whose edge
+	// refuses scripted agents by name (MySQL's CDN blocks anything it has
+	// not seen before). The Go default agent passes.
+	PlainUA bool
 }
 
 // Phase names the progress milestones of an install.
@@ -224,8 +229,12 @@ func (m *Manager) download(ctx context.Context, src Source, dest string) error {
 	if err != nil {
 		return err
 	}
-	// Some hosts (windows.php.net included) refuse bare clients.
-	req.Header.Set("User-Agent", "Kitodock-installer/0.1 (+https://github.com/sambilrebahan/kitodock)")
+	// Some hosts (windows.php.net included) refuse bare clients; others
+	// refuse unknown custom agents instead — PlainUA picks the Go default
+	// for those.
+	if !src.PlainUA {
+		req.Header.Set("User-Agent", "Kitodock-installer/0.1 (+https://github.com/sambilrebahan/kitodock)")
+	}
 	resp, err := m.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("download %s %s: %w", src.ID, src.Version, err)
