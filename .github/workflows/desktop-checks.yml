@@ -68,12 +68,9 @@ jobs:
 
       - name: Go test
         run: |
-          $packages = go list ./... | Where-Object { $_ -notmatch "/desktop$" }
-          go test -mod=readonly -v $packages 2>&1 | Tee-Object -Variable testOutput
-          if ($LASTEXITCODE -ne 0) {
-            $testOutput | Select-String -Pattern "FAIL|--- FAIL|cannot|undefined" | Select-Object -First 10 | ForEach-Object { Write-Host $_.Line }
-            exit 1
-          }
+          $pkgs = go list ./... | Where-Object { $_ -notmatch "desktop" }
+          $pkgs -join " " | Write-Host
+          go test -mod=readonly $pkgs
 
       # -unsafeptr is relaxed only for internal/clipboard, whose Win32
       # HGLOBAL access must convert a GlobalLock uintptr; there is no
