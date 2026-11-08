@@ -35,7 +35,8 @@ export default function WorkspaceNavigator({ projectName }: { projectName: strin
 
   useEffect(() => {
     if (tab === "files" && projectName) {
-      void refresh("");
+      const timer = setTimeout(() => void refresh(""), 0);
+      return () => clearTimeout(timer);
     }
   }, [tab, projectName, refresh]);
 
@@ -222,7 +223,8 @@ function GitPanel({ projectName }: { projectName: string }) {
   }, [projectName]);
 
   useEffect(() => {
-    void refresh();
+    const timer = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const stage = async (paths: string[]) => {
