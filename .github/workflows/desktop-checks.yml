@@ -64,7 +64,7 @@ jobs:
         run: npm run lint
 
       - name: Go test
-        run: go test -mod=readonly ./...
+        run: go test -mod=readonly -v ./... 2>&1 | Tee-Object -Variable testOutput; if ($LASTEXITCODE -ne 0) { $testOutput | Select-String -Pattern "FAIL|--- FAIL" | ForEach-Object { Write-Host $_.Line }; exit 1 }
 
       # -unsafeptr is relaxed only for internal/clipboard, whose Win32
       # HGLOBAL access must convert a GlobalLock uintptr; there is no
