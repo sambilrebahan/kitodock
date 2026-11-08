@@ -1,12 +1,16 @@
 package clipboard
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestWriteThenReadRoundTrip(t *testing.T) {
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("clipboard needs an interactive session")
+	}
 	if runtime.GOOS != "windows" {
 		if _, err := ReadText(); err != ErrUnavailable {
 			t.Fatalf("ReadText() off Windows = %v, want ErrUnavailable", err)

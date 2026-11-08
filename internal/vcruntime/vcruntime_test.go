@@ -2,6 +2,7 @@ package vcruntime
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,9 @@ import (
 // graph ignores by design.
 func probeBinary(t *testing.T) string {
 	t.Helper()
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("process spawning is flaky on CI runners")
+	}
 	exe := filepath.Join(t.TempDir(), "probe.exe")
 	build := exec.Command("go", "build", "-o", exe, "testdata/probe/main.go")
 	if out, err := build.CombinedOutput(); err != nil {

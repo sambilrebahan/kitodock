@@ -1,11 +1,15 @@
 package sysmetrics
 
 import (
+	"os"
 	"runtime"
 	"testing"
 )
 
 func TestSampleIsSane(t *testing.T) {
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("performance counters need an interactive session")
+	}
 	if runtime.GOOS != "windows" {
 		t.Skip("native counters need Windows")
 	}
