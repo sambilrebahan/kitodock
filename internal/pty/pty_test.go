@@ -1,6 +1,7 @@
 package pty
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"testing"
