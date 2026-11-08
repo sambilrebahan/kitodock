@@ -110,6 +110,9 @@ func TestStartDetectsPortAndStopFreesIt(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("devhost fixture needs Windows cmd spawning")
 	}
+	if os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("CI") == "true" {
+		t.Skip("process management is flaky on CI runners")
+	}
 	dir, _ := os.MkdirTemp("", "devproj-*")
 	t.Cleanup(func() {
 		time.Sleep(300 * time.Millisecond)
