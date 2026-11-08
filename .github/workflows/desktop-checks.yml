@@ -63,8 +63,11 @@ jobs:
         working-directory: desktop/frontend
         run: npm run lint
 
+      - name: Go compile check
+        run: go build -mod=readonly ./...
+
       - name: Go test
-        run: go test -mod=readonly -v ./... 2>&1 | Tee-Object -Variable testOutput; if ($LASTEXITCODE -ne 0) { $testOutput | Select-String -Pattern "FAIL|--- FAIL" | ForEach-Object { Write-Host $_.Line }; exit 1 }
+        run: go test -mod=readonly -v ./... 2>&1 | Tee-Object -Variable testOutput; if ($LASTEXITCODE -ne 0) { $testOutput | Select-String -Pattern "FAIL|--- FAIL|cannot|undefined" | Select-Object -First 10 | ForEach-Object { Write-Host $_.Line }; exit 1 }
 
       # -unsafeptr is relaxed only for internal/clipboard, whose Win32
       # HGLOBAL access must convert a GlobalLock uintptr; there is no
