@@ -56,6 +56,8 @@ const (
 	EvQueueStatus = "queueworker:status"
 	// EvQueueLog streams queue worker output.
 	EvQueueLog = "queueworker:log"
+	// EvSourceControl announces a source control operation state change.
+	EvSourceControl = "sourcecontrol:operation"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

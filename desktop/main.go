@@ -69,6 +69,8 @@ func main() {
 			app.Doctor,
 			app.Terminal,
 			app.CronQueue,
+			app.Files,
+			app.Git,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,

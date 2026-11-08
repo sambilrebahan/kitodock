@@ -311,5 +311,21 @@
     "edit": "Sunting",
     "runNow": "Jalankan sekarang",
     "lastRun": "Terakhir jalan"
+  },
+  "workspace": {
+    "files": "Berkas",
+    "git": {
+      "notRepo": "Bukan repositori git",
+      "staged": "Distage",
+      "changes": "Perubahan",
+      "stageAll": "Stage semua",
+      "unstageAll": "Unstage semua",
+      "commitMessage": "Pesan commit…",
+      "commit": "Commit",
+      "push": "Push"
+    },
+    "readOnly": "baca-saja",
+    "save": "Simpan (Ctrl+S)",
+    "selectFile": "Pilih berkas untuk disunting"
   }
 }

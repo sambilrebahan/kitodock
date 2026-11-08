@@ -311,5 +311,21 @@
     "edit": "Edit",
     "runNow": "Run now",
     "lastRun": "Last run"
+  },
+  "workspace": {
+    "files": "Files",
+    "git": {
+      "notRepo": "Not a git repository",
+      "staged": "Staged",
+      "changes": "Changes",
+      "stageAll": "Stage all",
+      "unstageAll": "Unstage all",
+      "commitMessage": "Commit message…",
+      "commit": "Commit",
+      "push": "Push"
+    },
+    "readOnly": "read-only",
+    "save": "Save (Ctrl+S)",
+    "selectFile": "Select a file to edit"
   }
 }

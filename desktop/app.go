@@ -34,6 +34,8 @@ type App struct {
 	Doctor    *controllers.Doctor
 	Terminal  *controllers.Terminal
 	CronQueue *controllers.CronQueue
+	Files     *controllers.Files
+	Git       *controllers.Git
 
 	phpMgr *kphp.Manager
 
@@ -67,6 +69,8 @@ func NewApp(trayIcon []byte) *App {
 	projectsCtrl := controllers.NewProjects(bus, cfg, serving, phpMgr, nodeMgr)
 	devCtrl := controllers.NewDev(bus, serving)
 	doctorCtrl := controllers.NewDoctor(bus, serving.DoctorTarget)
+	filesCtrl := controllers.NewFiles(serving)
+	gitCtrl := controllers.NewGit(bus, serving)
 	termCtrl := controllers.NewTerminal(bus, serving, func() string { return paths.CmderRoot() }, cfg)
 	cronQueueCtrl := controllers.NewCronQueue(bus, serving, func(jobs []cron.Job) error {
 		return cfg.SetCrons(jobsToRaw(jobs))
@@ -84,6 +88,8 @@ func NewApp(trayIcon []byte) *App {
 		Doctor:    doctorCtrl,
 		Terminal:  termCtrl,
 		CronQueue: cronQueueCtrl,
+		Files:     filesCtrl,
+		Git:       gitCtrl,
 		serving:   serving,
 		phpMgr:    phpMgr,
 		trayIcon:  trayIcon,

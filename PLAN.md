@@ -84,6 +84,8 @@ Fase 2).
 > 22 paket hijau; audit 7,3%/0 komentar). **Fase 2 PENUH: SELESAI.**
 > **Fase 3 selesai** 2026-11-08 — lihat [docs/progress/fase-3.md](docs/progress/fase-3.md)
 > (ConPTY+terminal workspace tab/split, cron+Task Scheduler, queue worker; 25 paket hijau; audit 7,2%/0 komentar).
+> **Fase 4 selesai** 2026-11-08 — lihat [docs/progress/fase-4.md](docs/progress/fase-4.md)
+> (workspacefiles+Monaco editor+git panel; 28 paket hijau; audit 6,9%/0 komentar).
 
 ## 5. Estimasi Effort Relatif
 
