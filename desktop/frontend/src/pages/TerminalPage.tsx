@@ -91,10 +91,12 @@ export default function TerminalPage() {
     });
   }, []);
 
-  // Auto-open first tab.
+  // Auto-open first tab: a micro-task avoids the synchronous setState
+  // inside the effect that the lint rule (rightly) flags.
   useEffect(() => {
     if (tabs.length === 0) {
-      void openNewTab();
+      const timer = setTimeout(() => void openNewTab(), 0);
+      return () => clearTimeout(timer);
     }
   }, [tabs.length, openNewTab]);
 
