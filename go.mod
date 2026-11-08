@@ -3,8 +3,10 @@ module kitodock
 go 1.26.0
 
 require (
+	github.com/UserExistsError/conpty v0.1.4
 	github.com/energye/systray v1.0.3
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0
