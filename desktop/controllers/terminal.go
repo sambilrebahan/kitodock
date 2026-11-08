@@ -22,6 +22,14 @@ type Terminal struct {
 	serving TerminalServing
 	// cmderRoot is the Cmder install root ("" = not installed).
 	cmderRoot func() string
+	// workspaceStore persists the terminal layout (save/restore).
+	workspaceStore WorkspaceStore
+}
+
+// WorkspaceStore persists the terminal layout.
+type WorkspaceStore interface {
+	GetTerminalWorkspace() []byte
+	SetTerminalWorkspace(raw []byte) error
 }
 
 // TerminalServing is what the terminal controller needs from the app.
@@ -30,8 +38,8 @@ type TerminalServing interface {
 	PathDirsFor(name string) []string
 }
 
-func NewTerminal(bus *EventBus, serving TerminalServing, cmderRoot func() string) *Terminal {
-	t := &Terminal{bus: bus, pty: pty.NewRegistry(), serving: serving, cmderRoot: cmderRoot}
+func NewTerminal(bus *EventBus, serving TerminalServing, cmderRoot func() string, ws WorkspaceStore) *Terminal {
+	t := &Terminal{bus: bus, pty: pty.NewRegistry(), serving: serving, cmderRoot: cmderRoot, workspaceStore: ws}
 	t.pty.NotifyExit(func(id string) {
 		bus.Emit(EvTermExit, map[string]any{"id": id})
 	})
@@ -230,3 +238,19 @@ func findOnPath(exe string) string {
 }
 
 var _ = filepath.Join
+
+// GetTerminalWorkspace returns the persisted layout ("" when unset).
+func (t *Terminal) GetTerminalWorkspace() string {
+	if t.workspaceStore == nil {
+		return ""
+	}
+	return string(t.workspaceStore.GetTerminalWorkspace())
+}
+
+// SaveTerminalWorkspace persists the layout (raw JSON from the frontend).
+func (t *Terminal) SaveTerminalWorkspace(raw string) error {
+	if t.workspaceStore == nil {
+		return nil
+	}
+	return t.workspaceStore.SetTerminalWorkspace([]byte(raw))
+}

@@ -211,7 +211,18 @@
     "phpPickHelp": "Installed: {{series}}. Empty returns to automatic detection.",
     "phpPickEmpty": "No PHP is installed yet — pick one up from Libs / Tools first.",
     "phpUnknown": "\"{{series}}\" is not an installed PHP series.",
-    "phpInstallTip": "PHP {{series}} is available under Libs / Tools."
+    "phpInstallTip": "PHP {{series}} is available under Libs / Tools.",
+    "queue": {
+      "title": "Queue worker",
+      "running": "Running",
+      "stopped": "Stopped",
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "argsPlaceholder": "--queue=default",
+      "logs": "Logs",
+      "noLogs": "No output yet."
+    }
   },
   "ca": {
     "title": "Local HTTPS authority",
@@ -282,7 +293,9 @@
   "terminal": {
     "newTab": "New project tab",
     "tab": "Tab",
-    "split": "Split"
+    "split": "Split",
+    "splitH": "Split horizontally",
+    "splitV": "Split vertically"
   },
   "cron": {
     "title": "Cron",

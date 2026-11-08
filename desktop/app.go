@@ -67,7 +67,7 @@ func NewApp(trayIcon []byte) *App {
 	projectsCtrl := controllers.NewProjects(bus, cfg, serving, phpMgr, nodeMgr)
 	devCtrl := controllers.NewDev(bus, serving)
 	doctorCtrl := controllers.NewDoctor(bus, serving.DoctorTarget)
-	termCtrl := controllers.NewTerminal(bus, serving, func() string { return paths.CmderRoot() })
+	termCtrl := controllers.NewTerminal(bus, serving, func() string { return paths.CmderRoot() }, cfg)
 	cronQueueCtrl := controllers.NewCronQueue(bus, serving, func(jobs []cron.Job) error {
 		return cfg.SetCrons(jobsToRaw(jobs))
 	})

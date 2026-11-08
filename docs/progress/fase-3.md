@@ -42,12 +42,13 @@
 ## 5. Keputusan & catatan
 
 1. **react-resizable-panels dihapus**: v4 punya API `Group/Panel/Separator` yang berbeda total dari v2 yang LaraEnv referensikan (`PanelGroup/Panel/PanelResizeHandle`). Split CSS flex murni dipakai — sederhana, tanpa dependensi, dan cukup untuk tab+split horizontal. Floating windows + detach menyusul.
-2. **Floating workspace (drag/resize/snap/detach) belum**: LaraEnv punya ~1.000 baris workspace reducer untuk ini. Fase 3 versi kitodock memakai tab+split sederhana yang berfungsi; floating window + detach ke proses satelit dicatat sebagai **utang Fase 6** (saat agents membutuhkan multi-window).
-3. **Workspace persistence belum**: layout tab/split belum disimpan ke config. Ditambahkan bersama floating workspace di Fase 6.
-4. **ConPTY env**: `ConPtyEnv` option dari library dipakai langsung (bukan cmd /c set wrapper) — lebih bersih dan setiap variabel env dikontrol.
-5. **Task Scheduler**: entry dibuat dengan `schtasks /Create /SC MINUTE /MO 1` (heartbeat per-menit, bukan terjemahan cron expression) — CLI `--cron-run <id>` memeriksa apakah menit ini adalah menit tembak.
+2. **Split bertingkat recursive (H+V)**: pohon Node (leaf | split{dir,children}) dengan split horizontal dan vertikal bertingkat; SplitView recursive CSS flex; tombol H dan V di toolbar. **Floating window detach/attach tetap utang Fase 6.**
+3. **Layout persistence**: GetTerminalWorkspace/SaveTerminalWorkspace di controller + field `terminalWorkspace` di config.json (raw JSON); TerminalPage restore saat mount (respawn semua pane) + persist debounce 500ms.
+4. **Queue worker UI**: kartu QueueWorkerControls di halaman Projects untuk proyek Laravel — start (dengan input args), stop, restart, dot status, modal log auto-refresh 1,2 dtk; event `queueworker:status` live.
+5. **ConPTY env**: `ConPtyEnv` option dari library dipakai langsung — setiap variabel env dikontrol.
+6. **Task Scheduler**: entry per-menit heartbeat; `--cron-run <id>` memeriksa apakah menit ini menembak.
 
-## 6. Utang
-- Floating workspace + detach + persistence (Fase 6).
-- SSH terminal pane (Fase 5 — controller + PTY remote).
+## 6. Utang yang tersisa
+- **Floating workspace (drag/resize/snap/detach ke jendela satelit)**: tetap Fase 6 saat agents butuh multi-window — split bertingkat + persistence sudah jalan, floating window adalah lapisan tambahan.
+- SSH terminal pane (Fase 5).
 - Meta-test no-bare-strings frontend (utang Fase 0 yang persisten).

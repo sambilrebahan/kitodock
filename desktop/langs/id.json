@@ -211,7 +211,18 @@
     "phpPickHelp": "Terpasang: {{series}}. Kosongkan untuk kembali ke deteksi otomatis.",
     "phpPickEmpty": "Belum ada PHP terpasang — ambil dulu di Pustaka / Alat.",
     "phpUnknown": "\"{{series}}\" bukan seri PHP yang terpasang.",
-    "phpInstallTip": "PHP {{series}} tersedia di Pustaka / Alat."
+    "phpInstallTip": "PHP {{series}} tersedia di Pustaka / Alat.",
+    "queue": {
+      "title": "Queue worker",
+      "running": "Berjalan",
+      "stopped": "Berhenti",
+      "start": "Nyalakan",
+      "stop": "Hentikan",
+      "restart": "Restart",
+      "argsPlaceholder": "--queue=default",
+      "logs": "Log",
+      "noLogs": "Belum ada keluaran."
+    }
   },
   "ca": {
     "title": "Otoritas HTTPS lokal",
@@ -282,7 +293,9 @@
   "terminal": {
     "newTab": "Tab proyek baru",
     "tab": "Tab",
-    "split": "Split"
+    "split": "Split",
+    "splitH": "Split horizontal",
+    "splitV": "Split vertikal"
   },
   "cron": {
     "title": "Cron",

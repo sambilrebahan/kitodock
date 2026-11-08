@@ -40,3 +40,15 @@ func (s *Store) SetProjectsTLD(tld string) error {
 func (s *Store) SetCrons(jobs []map[string]any) error {
 	return s.commit(func(c *Config) { c.Crons = jobs })
 }
+
+// SetTerminalWorkspace persists the terminal layout (raw JSON, frontend-owned).
+func (s *Store) SetTerminalWorkspace(raw []byte) error {
+	return s.commit(func(c *Config) { c.TerminalWorkspace = raw })
+}
+
+// GetTerminalWorkspace returns the persisted layout (nil when unset).
+func (s *Store) GetTerminalWorkspace() []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.data.TerminalWorkspace
+}

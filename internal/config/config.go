@@ -66,6 +66,10 @@ type Config struct {
 	// Crons is the persisted cron job list, stored as raw JSON to avoid
 	// importing internal/cron from config (import cycle).
 	Crons []map[string]any `json:"crons,omitempty"`
+	// TerminalWorkspace is the persisted terminal layout (tabs, split trees,
+	// spawn descriptors). Raw JSON owned by the frontend; the backend
+	// round-trips it.
+	TerminalWorkspace []byte `json:"terminalWorkspace,omitempty"`
 }
 
 // defaultsFor is the value a fresh environment starts from. Returned through
