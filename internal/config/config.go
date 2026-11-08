@@ -63,6 +63,9 @@ type Config struct {
 	Language    string   `json:"language,omitempty"`
 	Stack       Stack    `json:"stack"`
 	Projects    Projects `json:"projects"`
+	// Crons is the persisted cron job list, stored as raw JSON to avoid
+	// importing internal/cron from config (import cycle).
+	Crons []map[string]any `json:"crons,omitempty"`
 }
 
 // defaultsFor is the value a fresh environment starts from. Returned through

@@ -86,6 +86,7 @@ func PostgresDir() string { return filepath.Join(Root(), "postgres") }
 func RedisDir() string    { return filepath.Join(Root(), "redis") }
 func MailpitDir() string  { return filepath.Join(Root(), "mailpit") }
 func PHPDir() string      { return filepath.Join(Root(), "php") }
+func CmderRoot() string   { return filepath.Join(Root(), "cmder") }
 func NodeDir() string     { return filepath.Join(Root(), "nodejs") }
 
 // DownloadsCache is where installer archives wait for extraction. It lives

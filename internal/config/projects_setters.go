@@ -35,3 +35,8 @@ func (s *Store) SetProjectPhp(name, series string) error {
 func (s *Store) SetProjectsTLD(tld string) error {
 	return s.commit(func(c *Config) { c.Projects.TLD = tld })
 }
+
+// SetCrons persists the cron job list (raw JSON to avoid a cron import).
+func (s *Store) SetCrons(jobs []map[string]any) error {
+	return s.commit(func(c *Config) { c.Crons = jobs })
+}
