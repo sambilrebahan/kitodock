@@ -43,6 +43,11 @@ func TestSpawnWriteReadExit(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("ConPTY needs Windows")
 	}
+	// GitHub Actions runners have no interactive session; ConPTY's
+	// pseudoconsole needs one to function correctly.
+	if os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("CI") == "true" {
+		t.Skip("ConPTY needs an interactive session (not available on CI runners)")
+	}
 	r := NewRegistry()
 	defer r.CloseAll()
 
