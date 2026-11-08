@@ -485,3 +485,18 @@ func (s *serving) fpmRunning(series string) bool {
 }
 
 var _ controllers.DevServing = (*serving)(nil)
+
+// PhpExeFor resolves a project's PHP binary path (CronServing interface).
+func (s *serving) PhpExeFor(name string) string {
+	series := s.resolvePhpSeries(projects.Project{Name: name, Path: s.ProjectPath(name)})
+	if series == "" {
+		return ""
+	}
+	dir := s.php.DirFor(series)
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "php.exe")
+}
+
+var _ controllers.CronServing = (*serving)(nil)

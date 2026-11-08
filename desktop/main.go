@@ -67,6 +67,8 @@ func main() {
 			app.Projects,
 			app.Dev,
 			app.Doctor,
+			app.Terminal,
+			app.CronQueue,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,

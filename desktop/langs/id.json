@@ -278,5 +278,25 @@
     "creating": "Membuat…",
     "created": "Proyek dibuat",
     "failed": "Pembuatan gagal"
+  },
+  "terminal": {
+    "newTab": "Tab proyek baru",
+    "tab": "Tab",
+    "split": "Split"
+  },
+  "cron": {
+    "title": "Cron",
+    "new": "Job baru",
+    "empty": "Belum ada job terjadwal.",
+    "name": "Nama job",
+    "schedule": "Jadwal",
+    "command": "Perintah",
+    "background": "latar belakang",
+    "backgroundHelp": "Jalan bahkan saat Kitodock ditutup (Task Scheduler Windows)",
+    "deleteConfirm": "Hapus \"{{name}}\"?",
+    "delete": "Hapus",
+    "edit": "Sunting",
+    "runNow": "Jalankan sekarang",
+    "lastRun": "Terakhir jalan"
   }
 }

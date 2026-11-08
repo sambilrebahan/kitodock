@@ -278,5 +278,25 @@
     "creating": "Creating…",
     "created": "Project created",
     "failed": "Creation failed"
+  },
+  "terminal": {
+    "newTab": "New project tab",
+    "tab": "Tab",
+    "split": "Split"
+  },
+  "cron": {
+    "title": "Cron",
+    "new": "New job",
+    "empty": "No scheduled jobs yet.",
+    "name": "Job name",
+    "schedule": "Schedule",
+    "command": "Command",
+    "background": "background",
+    "backgroundHelp": "Run even when Kitodock is closed (Windows Task Scheduler)",
+    "deleteConfirm": "Delete \"{{name}}\"?",
+    "delete": "Delete",
+    "edit": "Edit",
+    "runNow": "Run now",
+    "lastRun": "Last run"
   }
 }

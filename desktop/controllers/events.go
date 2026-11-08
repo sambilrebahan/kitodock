@@ -46,6 +46,16 @@ const (
 	EvDevStatus = "devserver:status"
 	// EvDoctorOutput streams fix progress lines.
 	EvDoctorOutput = "doctor:output"
+	// EvTermData carries PTY output chunks (term:data:<id>).
+	EvTermData = "term:data"
+	// EvTermExit announces a PTY session ended.
+	EvTermExit = "term:exit"
+	// EvCronStatus carries a cron job's lifecycle.
+	EvCronStatus = "cron:status"
+	// EvQueueStatus carries a queue worker's state.
+	EvQueueStatus = "queueworker:status"
+	// EvQueueLog streams queue worker output.
+	EvQueueLog = "queueworker:log"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

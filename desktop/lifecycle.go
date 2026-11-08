@@ -37,6 +37,10 @@ func (a *App) startup(ctx context.Context) {
 	// entries, certificates, php pools) after a move or partial failure.
 	go a.serving.Sweep(ctx)
 
+	// Start the cron engine with persisted jobs.
+	a.Terminal.SetContext(ctx)
+	a.CronQueue.StartCron(rawToJobs(a.cfg.Get().Crons))
+
 	// Stream what changed, both to the window and into the tray's labels.
 	go a.stack.Watch(ctx, 1500*time.Millisecond, func() {
 		a.bus.Emit(controllers.EvServiceStatus, a.stack.Snapshot())
@@ -102,6 +106,9 @@ func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	quitting.Store(true)
 	a.Dev.StopAllDev()
+	a.CronQueue.StopCron()
+	a.CronQueue.StopAllQueueWorkers()
+	a.Terminal.CloseAll()
 	a.stack.StopAll()
 	StopTray()
 	a.ctx = nil

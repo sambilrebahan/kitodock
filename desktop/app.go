@@ -7,10 +7,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"kitodock/desktop/controllers"
 	"kitodock/internal/config"
+	"kitodock/internal/cron"
 	knode "kitodock/internal/nodejs"
 	"kitodock/internal/paths"
 	kphp "kitodock/internal/php"
@@ -30,6 +32,10 @@ type App struct {
 	Projects  *controllers.Projects
 	Dev       *controllers.Dev
 	Doctor    *controllers.Doctor
+	Terminal  *controllers.Terminal
+	CronQueue *controllers.CronQueue
+
+	phpMgr *kphp.Manager
 
 	serving *serving
 
@@ -61,6 +67,10 @@ func NewApp(trayIcon []byte) *App {
 	projectsCtrl := controllers.NewProjects(bus, cfg, serving, phpMgr, nodeMgr)
 	devCtrl := controllers.NewDev(bus, serving)
 	doctorCtrl := controllers.NewDoctor(bus, serving.DoctorTarget)
+	termCtrl := controllers.NewTerminal(bus, serving, func() string { return paths.CmderRoot() })
+	cronQueueCtrl := controllers.NewCronQueue(bus, serving, func(jobs []cron.Job) error {
+		return cfg.SetCrons(jobsToRaw(jobs))
+	})
 
 	app := &App{
 		cfg:       cfg,
@@ -72,10 +82,46 @@ func NewApp(trayIcon []byte) *App {
 		Projects:  projectsCtrl,
 		Dev:       devCtrl,
 		Doctor:    doctorCtrl,
+		Terminal:  termCtrl,
+		CronQueue: cronQueueCtrl,
 		serving:   serving,
+		phpMgr:    phpMgr,
 		trayIcon:  trayIcon,
 	}
 	return app
+}
+
+// jobsToRaw converts typed cron jobs to the raw config representation
+// (config stores []map[string]any to avoid importing cron from config).
+func jobsToRaw(jobs []cron.Job) []map[string]any {
+	out := make([]map[string]any, len(jobs))
+	for i, job := range jobs {
+		data, err := json.Marshal(job)
+		if err != nil {
+			continue
+		}
+		var m map[string]any
+		if json.Unmarshal(data, &m) == nil {
+			out[i] = m
+		}
+	}
+	return out
+}
+
+// rawToJobs converts the raw config representation back to typed jobs.
+func rawToJobs(raw []map[string]any) []cron.Job {
+	out := make([]cron.Job, 0, len(raw))
+	for _, m := range raw {
+		data, err := json.Marshal(m)
+		if err != nil {
+			continue
+		}
+		var job cron.Job
+		if json.Unmarshal(data, &job) == nil {
+			out = append(out, job)
+		}
+	}
+	return out
 }
 
 // Config exposes the store to the lifecycle (relocation repair lands in a
