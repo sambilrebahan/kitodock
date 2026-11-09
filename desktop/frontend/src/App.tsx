@@ -6,6 +6,7 @@ import { EventsOn } from "../wailsjs/runtime";
 import { ResolveDocumentShutdown } from "../wailsjs/go/controllers/Terminal";
 import Sidebar, { type Page } from "./components/Sidebar";
 import WindowControls from "./components/WindowControls";
+import CommandPalette from "./components/CommandPalette";
 import PortsModal from "./components/PortsModal";
 import { useDialogs } from "./components/dialogs/DialogProvider";
 import Agents from "./pages/Agents";
@@ -31,6 +32,31 @@ function MainApp() {
   const dialogs = useDialogs();
   const [page, setPage] = useState<Page>("dashboard");
   const [portsOpen, setPortsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Ctrl+K toggles the command palette from anywhere in the window.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((openNow) => !openNow);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+
+  // Backend-initiated navigation (palette page:, MCP project_open, …).
+  useEffect(() => {
+    // @ts-ignore EventsOn returns a cancel function
+    return EventsOn("commandcenter:navigate", (payload: { target: string }) => {
+      const [kind, arg] = (payload?.target ?? "").split(":");
+      if (kind === "page") setPage(arg as Page);
+      // project navigation lands on the projects page for now; the
+      // projects page keeps its own selection.
+      if (kind === "project") setPage("projects");
+    });
+  }, []);
 
   // Document shutdown gate: the backend emits this when the user tries to
   // quit with unsaved editor buffers. Show a dialog and resolve.
@@ -95,6 +121,15 @@ function MainApp() {
         </main>
       </div>
       {portsOpen && <PortsModal onClose={() => setPortsOpen(false)} />}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={(target) => {
+          const [kind, arg] = target.split(":");
+          if (kind === "page") setPage(arg as Page);
+          if (kind === "project") setPage("projects");
+        }}
+      />
     </div>
   );
 }

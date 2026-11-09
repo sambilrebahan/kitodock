@@ -41,6 +41,18 @@ func (a *App) startup(ctx context.Context) {
 	a.Terminal.SetContext(ctx)
 	a.CronQueue.StartCron(rawToJobs(a.cfg.Get().Crons))
 
+	// Agent hook events drain from the spool while the window is open.
+	a.agentsDrain = a.Agents.StartDrain()
+
+	// The MCP endpoint resumes when it was enabled previously.
+	if a.cfg.Get().MCPEnabled {
+		if err := a.MCP.EnableMCP(); err != nil {
+			a.bus.Emit(controllers.EvAppNotice, map[string]any{
+				"message": err.Error(),
+			})
+		}
+	}
+
 	// Stream what changed, both to the window and into the tray's labels.
 	go a.stack.Watch(ctx, 1500*time.Millisecond, func() {
 		a.bus.Emit(controllers.EvServiceStatus, a.stack.Snapshot())
@@ -110,6 +122,9 @@ func (a *App) shutdown(ctx context.Context) {
 	a.CronQueue.StopAllQueueWorkers()
 	a.Terminal.CloseAll()
 	a.SSH.CloseAllSSH()
+	if a.agentsDrain != nil {
+		a.agentsDrain()
+	}
 	a.stack.StopAll()
 	StopTray()
 	a.ctx = nil

@@ -202,6 +202,10 @@ func (t *Terminal) StreamPtyData(id string) {
 // CloseAll ends every PTY (shutdown).
 func (t *Terminal) CloseAll() { t.pty.CloseAll() }
 
+// Registry exposes the shared PTY registry so sibling controllers (the
+// agents workspace) spawn through the same sessions and exit events.
+func (t *Terminal) Registry() *pty.Registry { return t.pty }
+
 // resolveShell maps a kind to an executable and default arguments.
 func (t *Terminal) resolveShell(kind string) (string, []string) {
 	profiles := t.ListTerminals()

@@ -28,22 +28,29 @@ type App struct {
 
 	stack *services.Manager
 
-	System      *controllers.System
-	Services    *controllers.Services
-	Installer   *controllers.Installer
-	Projects    *controllers.Projects
-	Dev         *controllers.Dev
-	Doctor      *controllers.Doctor
-	Terminal    *controllers.Terminal
-	CronQueue   *controllers.CronQueue
-	Files       *controllers.Files
-	Git         *controllers.Git
-	SSH         *controllers.SSH
-	Deployments *controllers.Deployments
+	System        *controllers.System
+	Services      *controllers.Services
+	Installer     *controllers.Installer
+	Projects      *controllers.Projects
+	Dev           *controllers.Dev
+	Doctor        *controllers.Doctor
+	Terminal      *controllers.Terminal
+	CronQueue     *controllers.CronQueue
+	Files         *controllers.Files
+	Git           *controllers.Git
+	SSH           *controllers.SSH
+	Deployments   *controllers.Deployments
+	Agents        *controllers.Agents
+	MCP           *controllers.MCP
+	Updates       *controllers.Updates
+	CommandCenter *controllers.CommandCenter
 
 	phpMgr *kphp.Manager
 
 	serving *serving
+
+	// agentsDrain stops the agent hook spool pump at shutdown.
+	agentsDrain func()
 
 	trayIcon []byte
 }
@@ -86,25 +93,87 @@ func NewApp(trayIcon []byte) *App {
 		panic(fmt.Sprintf("open deployment store: %v", err))
 	}
 
+	// Phase 6: agents, MCP endpoint, updater and the command center.
+	agentsCtrl, err := controllers.NewAgents(bus, termCtrl.Registry(), serving)
+	if err != nil {
+		panic(fmt.Sprintf("agent manager: %v", err))
+	}
+	// Agent sessions ride the same PTY registry as the terminal
+	// workspace; exits feed both the pane-close event and the agent bookkeeping.
+	termCtrl.Registry().NotifyExit(func(ptyID string) {
+		bus.Emit("term:exit", map[string]any{"id": ptyID})
+		agentsCtrl.HandlePtyExit(ptyID)
+	})
+
+	deps := &mcpDeps{serving: serving, stack: stack,
+		emit: func(event string, data map[string]any) { bus.Emit(event, data) }}
+	mcpCtrl := controllers.NewMCP(bus, deps, cfg.SetMCPEnabled)
+	updatesCtrl := controllers.NewUpdates(bus, "sambilrebahan/kitodock")
+	commandCenter := controllers.NewCommandCenter(bus,
+		func() controllers.CommandContext {
+			ctx := controllers.CommandContext{
+				Pages:    []string{"dashboard", "projects", "terminal", "ssh", "deployments", "agents", "cron", "downloads", "settings"},
+				Services: stack.Names(),
+			}
+			for _, p := range serving.ListProjects() {
+				ctx.Projects = append(ctx.Projects, p.Name)
+			}
+			if hosts, err := sshCtrl.ListHosts(); err == nil {
+				for _, h := range hosts {
+					ctx.Hosts = append(ctx.Hosts, h.Name)
+				}
+			}
+			for _, p := range agentsCtrl.AgentProviders() {
+				if p.Path != "" {
+					ctx.Agents = append(ctx.Agents, string(p.Provider.Kind))
+				}
+			}
+			return ctx
+		},
+		func(target string) { bus.Emit("commandcenter:navigate", map[string]any{"target": target}) },
+		map[string]func(string) error{
+			"service:start": func(name string) error { return stack.Start(context.Background(), name) },
+			"service:stop":  func(name string) error { return stack.Stop(name) },
+			// Pane-creating intents execute in the frontend, which owns
+			// the workspace state; the backend just announces them.
+			"terminal": func(project string) error {
+				bus.Emit("commandcenter:run", map[string]any{"kind": "terminal", "project": project})
+				return nil
+			},
+			"ssh": func(host string) error {
+				bus.Emit("commandcenter:run", map[string]any{"kind": "ssh", "host": host})
+				return nil
+			},
+			"agent": func(provider string) error {
+				bus.Emit("commandcenter:run", map[string]any{"kind": "agent", "provider": provider})
+				return nil
+			},
+		},
+	)
+
 	app := &App{
-		cfg:         cfg,
-		bus:         bus,
-		stack:       stack,
-		System:      system,
-		Services:    servicesCtrl,
-		Installer:   installer,
-		Projects:    projectsCtrl,
-		Dev:         devCtrl,
-		Doctor:      doctorCtrl,
-		Terminal:    termCtrl,
-		CronQueue:   cronQueueCtrl,
-		Files:       filesCtrl,
-		Git:         gitCtrl,
-		SSH:         sshCtrl,
-		Deployments: deployCtrl,
-		serving:     serving,
-		phpMgr:      phpMgr,
-		trayIcon:    trayIcon,
+		cfg:           cfg,
+		bus:           bus,
+		stack:         stack,
+		System:        system,
+		Services:      servicesCtrl,
+		Installer:     installer,
+		Projects:      projectsCtrl,
+		Dev:           devCtrl,
+		Doctor:        doctorCtrl,
+		Terminal:      termCtrl,
+		CronQueue:     cronQueueCtrl,
+		Files:         filesCtrl,
+		Git:           gitCtrl,
+		SSH:           sshCtrl,
+		Deployments:   deployCtrl,
+		Agents:        agentsCtrl,
+		MCP:           mcpCtrl,
+		Updates:       updatesCtrl,
+		CommandCenter: commandCenter,
+		serving:       serving,
+		phpMgr:        phpMgr,
+		trayIcon:      trayIcon,
 	}
 	return app
 }

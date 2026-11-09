@@ -313,11 +313,17 @@ terenkripsi.
 - `internal/cloud` (opsional, bisa dijadwal ulang): session discipline, E2EE Argon2id+AES-GCM,
   sync resource, rekey, engine_compat, billing — **hanya jika backend cloud akan dipakai**;
   default Kitodock: lokal penuh tanpa akun (posisi LaraEnv saat ini).
+  *(Realisasi: DIJADWALKAN ULANG — tidak diimplementasi di fase 6, produk lokal penuh;
+  lihat fase-6.md §6.1.)*
 - `internal/updater` (GitHub releases, sidecar sha256, cmd update MSI/portable).
 - `internal/notifications` penuh (diff sesi + threshold usage + toast + prefs).
 - `internal/webviewruntime` (recovery WebView2).
 - Controller `agents.go`, `mcp.go`, `cloud.go`, `commandcenter.go`; command-bar window +
   hotkey global (`internal/hotkey`); `cmd/deploy-tui` (port bubbletea).
+  *(Realisasi: agents/mcp/commandcenter/updates controller ada; palette Ctrl+K in-app dulu —
+  jendela terpisah + hotkey global menyusul; deploy-tui direalisasi sebagai CLI flags
+  non-interaktif `cmd/kitodock-deploy` berbagi engine+preset yang sama; cloud.go tidak ada
+  karena cloud dijadwalkan ulang — fase-6.md §6.)*
 
 **Frontend**
 - `components/agents/` penuh + halaman Agents; AgentLauncherMenu; usage bar; auto-switch.
@@ -340,7 +346,8 @@ terenkripsi.
    dieksekusi di jendela utama (buka project/terminal/service/navigasi).
 6. Updater: cek rilis GitHub, unduh + verifikasi sha256, apply MSI (relaunch) / portable swap.
 7. Notifications: sesi agent butuh input → toast (rate-limit) + inbox; 80/95% usage.
-8. deploy-tui build windows+linux dan bisa provision VPS dengan resep sama.
+8. deploy CLI (`kitodock-deploy`) build windows (linux menyusul di CI non-windows) dan bisa
+   provision VPS dengan resep sama. *(TUI interaktif bubbletea menyusul di atas CLI yang sama.)*
 
 **Dep**: Fase 3–5 (PTY untuk sesi, routing worktree dari Fase 2, SFTP/deploy untuk TUI).
 

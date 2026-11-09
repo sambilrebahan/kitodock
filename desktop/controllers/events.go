@@ -70,6 +70,10 @@ const (
 	// EvDocumentsShutdownRequest asks the frontend to confirm quitting with
 	// unsaved editor buffers.
 	EvDocumentsShutdownRequest = "documents:shutdown-request"
+	// EvAgentsActivity carries freshly drained agent hook events.
+	EvAgentsActivity = "agents:activity"
+	// EvAgentsSession announces agent session lifecycle changes.
+	EvAgentsSession = "agents:session"
 )
 
 // Deployment run events follow deployment:<kind>:<event>:<id> where kind

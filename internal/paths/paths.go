@@ -97,6 +97,10 @@ func SSHDir() string { return filepath.Join(Root(), "ssh") }
 // It lives under state because it is app data, not a service home.
 func DeploymentsDir() string { return filepath.Join(StateDir(), "deployments") }
 
+// AgentsDir holds agent session memory: sessions.json, the hook event
+// spool, the activity log and the application-context captures.
+func AgentsDir() string { return filepath.Join(StateDir(), "agents") }
+
 // DownloadsCache is where installer archives wait for extraction. It lives
 // in the OS temp area on purpose: it is a cache, never user data, and a
 // portable environment should not carry hundreds of megabytes of zips

@@ -70,6 +70,9 @@ type Config struct {
 	// spawn descriptors). Raw JSON owned by the frontend; the backend
 	// round-trips it.
 	TerminalWorkspace []byte `json:"terminalWorkspace,omitempty"`
+	// MCPEnabled turns on the loopback MCP endpoint and the client
+	// registrations. Off by default: it is an experimental surface.
+	MCPEnabled bool `json:"mcpEnabled,omitempty"`
 }
 
 // defaultsFor is the value a fresh environment starts from. Returned through
@@ -241,6 +244,11 @@ func (s *Store) Language() string {
 // agreement channel.
 func (s *Store) SetLanguage(code string) error {
 	return s.commit(func(c *Config) { c.Language = code })
+}
+
+// SetMCPEnabled toggles the experimental MCP endpoint preference.
+func (s *Store) SetMCPEnabled(enabled bool) error {
+	return s.commit(func(c *Config) { c.MCPEnabled = enabled })
 }
 
 // Watch reports the parsed configuration whenever the file changes, until

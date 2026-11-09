@@ -182,6 +182,25 @@
       "title": "Language",
       "help": "The interface language. It applies across every Kitodock window.",
       "needsReview": "machine-translated — native review welcome"
+    },
+    "mcp": {
+      "title": "MCP bridge (experimental)",
+      "help": "Expose Kitodock to agent clients over a loopback-only endpoint: projects, services, gated exec, database list, context captures and mail. Every call is audited without its arguments.",
+      "on": "MCP on — disable",
+      "off": "MCP off — enable",
+      "registered": "registered",
+      "notRegistered": "not registered",
+      "audit": "audit trail (no arguments)"
+    },
+    "updates": {
+      "title": "Updates",
+      "help": "Check GitHub releases, download the verified artifact and apply it.",
+      "check": "Check for updates",
+      "available": "update available",
+      "download": "Download & verify",
+      "apply": "Apply",
+      "portableHint": "Artifact staged. Close Kitodock, replace the folder contents with it, then start again.",
+      "msiHint": "Installer started; Kitodock will relaunch after it finishes."
     }
   },
   "tray": {
@@ -442,5 +461,35 @@
     "ssl": "SSL (certbot)",
     "showScript": "show script",
     "hideScript": "hide script"
+  },
+  "agents": {
+    "title": "Agents",
+    "launcher": "Launch in project",
+    "installed": "installed",
+    "notInstalled": "not installed",
+    "needProject": "Create a project first — agents launch inside one.",
+    "hooks": "Lifecycle hooks",
+    "hooksOn": "hooks on",
+    "hooksOff": "hooks off",
+    "hooksUnsupported": "no hook support",
+    "sessions": "Sessions",
+    "empty": "No agent sessions yet. Launch one above.",
+    "stop": "Stop",
+    "resume": "Resume",
+    "noResume": "No provider session recorded yet",
+    "rename": "Rename",
+    "renameTo": "New title",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "showArchived": "show archived",
+    "hideArchived": "hide archived",
+    "delete": "Delete",
+    "deleteConfirm": "Forget agent session \"{{name}}\"?",
+    "activity": "Activity",
+    "activityEmpty": "No hook events yet. Install hooks to see agent turns here."
+  },
+  "commandPalette": {
+    "placeholder": "Type a command… (pages, projects, services, ssh, agents)",
+    "empty": "No matching commands."
   }
 }

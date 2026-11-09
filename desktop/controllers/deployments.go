@@ -334,119 +334,13 @@ func (c *Deployments) connectRunner(hostName string) (string, deploy.Runner, err
 
 // --- Builtin presets -----------------------------------------------------
 
-// builtinPresets ships with the app. Presets replace the generated plan with
-// a fully caller-controlled script, so they document what they touch.
-var builtinPresets = []deploy.Preset{{
-	ID:          "git-pull-update",
-	Name:        "Git pull update",
-	Description: "Fast update path for an already-provisioned server: fetch the branch, hard reset, reinstall dependencies, migrate, rebuild caches.",
-	BuiltIn:     true,
-	Script: `set -e
-cd {deploy_root}
-echo "==> fetching {branch}"
-git fetch origin {branch}
-git reset --hard origin/{branch}
-echo "==> composer"
-composer install --no-dev --optimize-autoloader --no-interaction 2>&1 || echo "composer not present, skipped"
-echo "==> migrate"
-php artisan migrate --force 2>&1 || echo "artisan not present, skipped"
-php artisan config:cache 2>&1 || true
-php artisan route:cache 2>&1 || true
-echo "==> done"`,
-	Variables: []deploy.PresetVar{{
-		Key: "deploy_root", Label: "Deploy root", Default: "/var/www/{name}",
-	}},
-}, {
-	ID:          "laravel-production",
-	Name:        "Laravel production (full provision)",
-	Description: "Complete provisioning of an empty Ubuntu server for one Laravel site: packages, PHP-FPM, nginx vhost, MySQL database, certbot certificate, queue cron — the generated plan, but as an inspectable, copyable script.",
-	BuiltIn:     true,
-	Script: `set -e
-echo "==> base packages"
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common curl git unzip nginx mysql-server
-add-apt-repository -y ppa:ondrej/php
-DEBIAN_FRONTEND=noninteractive apt-get install -y php{php_version} php{php_version}-fpm php{php_version}-mysql php{php_version}-mbstring php{php_version}-xml php{php_version}-curl php{php_version}-zip php{php_version}-gd php{php_version}-bcmath
-curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-echo "==> code"
-mkdir -p {deploy_root}
-if [ ! -d {deploy_root}/.git ]; then git clone --branch {branch} --single-branch {git_url} {deploy_root}; fi
-cd {deploy_root}
-composer install --no-dev --optimize-autoloader --no-interaction
-[ -f .env ] || cp .env.example .env
-php artisan key:generate --force
-
-echo "==> site"
-cat > /etc/nginx/sites-available/{name} <<'VHOST'
-server {
-    listen 80;
-    server_name {domain};
-    root {deploy_root}/public;
-    index index.php;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php{php_version}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
-VHOST
-ln -sf /etc/nginx/sites-available/{name} /etc/nginx/sites-enabled/{name}
-nginx -t && systemctl reload nginx
-
-echo "==> done: {domain}"`,
-	Variables: []deploy.PresetVar{{
-		Key: "deploy_root", Label: "Deploy root", Default: "/var/www/{name}",
-	}},
-}, {
-	ID:          "static-site",
-	Name:        "Static site",
-	Description: "Deploy a plain static site (no PHP): clone the repository, publish its build output directory to the webroot, one nginx vhost, no database.",
-	BuiltIn:     true,
-	Script: `set -e
-echo "==> packages"
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y nginx git
-
-echo "==> code"
-mkdir -p {deploy_root}
-if [ ! -d {deploy_root}/.git ]; then git clone --branch {branch} --single-branch {git_url} {deploy_root}; fi
-cd {deploy_root}
-git fetch origin {branch} && git reset --hard origin/{branch}
-
-echo "==> site"
-cat > /etc/nginx/sites-available/{name} <<'VHOST'
-server {
-    listen 80;
-    server_name {domain};
-    root {deploy_root}/public;
-    index index.html index.htm;
-    location / { try_files $uri $uri/ =404; }
-}
-VHOST
-ln -sf /etc/nginx/sites-available/{name} /etc/nginx/sites-enabled/{name}
-nginx -t && systemctl reload nginx
-echo "==> done: {domain}"`,
-	Variables: []deploy.PresetVar{{
-		Key: "deploy_root", Label: "Deploy root", Default: "/var/www/{name}",
-	}},
-}}
-
 // DeployPresets returns the available deploy presets.
 func (c *Deployments) DeployPresets() []deploy.Preset {
-	out := make([]deploy.Preset, len(builtinPresets))
-	copy(out, builtinPresets)
-	return out
+	return deploy.BuiltinPresets()
 }
 
 func findPreset(id string) *deploy.Preset {
-	for i := range builtinPresets {
-		if builtinPresets[i].ID == id {
-			return &builtinPresets[i]
-		}
-	}
-	return nil
+	return deploy.FindBuiltinPreset(id)
 }
 
 // --- Bundle export/import --------------------------------------------------

@@ -182,6 +182,25 @@
       "title": "Bahasa",
       "help": "Bahasa antarmuka. Berlaku di semua jendela Kitodock.",
       "needsReview": "diterjemahkan mesin — reviu penutur asli ditunggu"
+    },
+    "mcp": {
+      "title": "Jembatan MCP (eksperimental)",
+      "help": "Ekspos Kitodock ke klien agent lewat endpoint khusus loopback: proyek, layanan, exec ter-konfirmasi, daftar database, capture konteks dan mail. Semua panggilan diaudit tanpa argumennya.",
+      "on": "MCP aktif — matikan",
+      "off": "MCP mati — aktifkan",
+      "registered": "terdaftar",
+      "notRegistered": "belum terdaftar",
+      "audit": "jejak audit (tanpa argumen)"
+    },
+    "updates": {
+      "title": "Pembaruan",
+      "help": "Cek rilis GitHub, unduh artefak terverifikasi lalu terapkan.",
+      "check": "Cek pembaruan",
+      "available": "ada pembaruan",
+      "download": "Unduh & verifikasi",
+      "apply": "Terapkan",
+      "portableHint": "Artefak siap. Tutup Kitodock, ganti isi folder dengannya, lalu jalankan lagi.",
+      "msiHint": "Installer dijalankan; Kitodock akan dinyalakan ulang setelahnya."
     }
   },
   "tray": {
@@ -442,5 +461,35 @@
     "ssl": "SSL (certbot)",
     "showScript": "lihat script",
     "hideScript": "sembunyikan script"
+  },
+  "agents": {
+    "title": "Agents",
+    "launcher": "Luncurkan di proyek",
+    "installed": "terpasang",
+    "notInstalled": "tidak terpasang",
+    "needProject": "Buat proyek dulu — agent dijalankan di dalam proyek.",
+    "hooks": "Hook lifecycle",
+    "hooksOn": "hook aktif",
+    "hooksOff": "hook mati",
+    "hooksUnsupported": "tanpa dukungan hook",
+    "sessions": "Sesi",
+    "empty": "Belum ada sesi agent. Luncurkan satu di atas.",
+    "stop": "Stop",
+    "resume": "Lanjutkan",
+    "noResume": "Sesi provider belum tercatat",
+    "rename": "Ganti nama",
+    "renameTo": "Judul baru",
+    "archive": "Arsipkan",
+    "unarchive": "Kembalikan",
+    "showArchived": "tampilkan arsip",
+    "hideArchived": "sembunyikan arsip",
+    "delete": "Hapus",
+    "deleteConfirm": "Lupakan sesi agent \"{{name}}\"?",
+    "activity": "Aktivitas",
+    "activityEmpty": "Belum ada event hook. Pasang hook untuk melihat turn agent di sini."
+  },
+  "commandPalette": {
+    "placeholder": "Ketik perintah… (halaman, proyek, layanan, ssh, agents)",
+    "empty": "Tidak ada perintah yang cocok."
   }
 }

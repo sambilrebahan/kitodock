@@ -88,6 +88,11 @@ Fase 2).
 > (workspacefiles+Monaco editor+git panel; 28 paket hijau; audit 6,9%/0 komentar).
 > **Fase 5 selesai** 2026-11-09 (termasuk ronde penutupan celah AC) — lihat
 > [docs/progress/fase-5.md](docs/progress/fase-5.md)
+> **Fase 6 selesai** 2026-11-10 — lihat [docs/progress/fase-6.md](docs/progress/fase-6.md)
+> (agents 4 provider + hooks/spool/activity, MCP bridge 9 tools + owner endpoint
+> teraudit + registrasi 3 klien, command palette Ctrl+K, updater terverifikasi sha256,
+> CLI kitodock-deploy; cloud dijadwalkan ulang sesuai opsi roadmap; 38 paket hijau;
+> audit 0 komentar prosa identik).
 > (ssh keys/hosts/TOFU/jump/SFTP progress-cancel-freeze + deploy engine redacted + destroy +
 > bundle import/export + 3 preset; pane SSH di terminal workspace; 33 paket hijau;
 > audit 0 komentar prosa identik).
