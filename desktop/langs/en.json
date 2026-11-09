@@ -326,6 +326,7 @@
     },
     "readOnly": "read-only",
     "save": "Save (Ctrl+S)",
-    "selectFile": "Select a file to edit"
+    "selectFile": "Select a file to edit",
+    "saveMerged": "Save anyway"
   }
 }

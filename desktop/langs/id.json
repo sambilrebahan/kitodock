@@ -326,6 +326,7 @@
     },
     "readOnly": "baca-saja",
     "save": "Simpan (Ctrl+S)",
-    "selectFile": "Pilih berkas untuk disunting"
+    "selectFile": "Pilih berkas untuk disunting",
+    "saveMerged": "Simpan paksa"
   }
 }

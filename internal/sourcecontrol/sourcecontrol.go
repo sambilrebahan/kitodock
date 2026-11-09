@@ -302,3 +302,32 @@ func (s *Service) RecentOperations() []Operation {
 
 // Close ends the service (stop any long-running ops via context).
 func (s *Service) Close() {}
+
+// Diff returns the working-tree diff for one file (unified format).
+// Empty string means no changes.
+func (s *Service) Diff(ctx context.Context, path string) (string, error) {
+	out, err := s.git(ctx, "diff", "--", path)
+	if err != nil {
+		return "", fmt.Errorf("git diff %s: %w: %s", path, err, strings.TrimSpace(out))
+	}
+	return out, nil
+}
+
+// DiffStaged returns the staged (index vs HEAD) diff for one file.
+func (s *Service) DiffStaged(ctx context.Context, path string) (string, error) {
+	out, err := s.git(ctx, "diff", "--cached", "--", path)
+	if err != nil {
+		return "", fmt.Errorf("git diff --cached %s: %w: %s", path, err, strings.TrimSpace(out))
+	}
+	return out, nil
+}
+
+// ShowFile returns the HEAD version of a file (for diff comparison).
+func (s *Service) ShowFile(ctx context.Context, path string) (string, error) {
+	out, err := s.git(ctx, "show", "HEAD:"+path)
+	if err != nil {
+		// New file (not in HEAD yet).
+		return "", nil
+	}
+	return out, nil
+}

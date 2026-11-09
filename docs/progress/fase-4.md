@@ -43,12 +43,15 @@
 2. **Git facade**: menggunakan git CLI langsung (bukan go-git) — lebih dapat dipercaya untuk edge cases; porcelain v2 diparse manual dengan format deterministik (LC_ALL=C).
 3. **Stage via pathspec-from-file**: menghindari shell quoting issues dengan path yang mengandung spasi/karakter khusus; fallback `restore --staged` → `reset HEAD` untuk git lama.
 4. **WorkspaceNavigator di TerminalPage**: sidebar 280px yang bisa di-toggle — Files dan Git berdampingan dengan terminal sesuai desain LaraEnv.
-5. **File tree masih flat**: listing hanya level direktori saat ini; navigasi sub-direktori via klik (expand tree menyusul).
+5. **File tree recursive**: expand/collapse per direktori dengan lazy-load anak (ListDirectory per level); ikon folder/file, indentasi bertingkat.
+6. **MarkdownPreview**: react-markdown + remark-gfm untuk file `.md`/`.markdown` dengan toggle Preview/Source.
+7. **Image preview**: ReadImage API → base64 `<img>` untuk `.png`/`.jpg`/`.jpeg`/`.gif`/`.webp` dengan MIME magic detection dari backend.
+8. **Git diff view**: klik file di panel Git → DiffEditor Monaco (HEAD vs working tree, via `ShowSourceControlFile` + `ReadSourceControlDiff`).
+9. **Save-merged**: tombol "Save anyway" muncul saat konflik — memanggil `SaveDocument` dengan revision kosong (force save).
+10. **Document shutdown gate**: `beforeunload` di main.tsx + `window.__kitodock_dirtyDocs` yang dilaporkan WorkspaceNavigator; browser/WebView menampilkan dialog konfirmasi saat ada buffer kotor.
+11. **Dirty-buffer tracking**: FilesTab melaporkan dirtyCount ke WorkspaceNavigator → window global → beforeunload.
 
-## 6. Utang
-- File tree expandable (lazy-load sub-direktori dengan cursor pagination).
-- MarkdownPreview (react-markdown + GFM + guard-link).
-- Image preview panel.
-- Document close dialog + shutdown gate.
-- Dirty-buffer stage integration (stage dari Git panel menawarkan save jika buffer kotor).
-- Diff review dari Git panel (klik file → lihat diff di tab).
+## 6. Utang yang tersisa (non-blocker)
+- Dirty-buffer stage dialog (staging dari Git menawarkan save dulu — saat ini stage memakai isi disk, bukan buffer).
+- Repository-changed detection (TOCTOU re-verify sebelum mutasi).
+- Document close dialog dalam app (saat ini beforeunload cukup untuk mencegah kehilangan; dialog kitodock sendiri menyusul).

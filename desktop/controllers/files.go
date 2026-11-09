@@ -225,3 +225,21 @@ func (g *Git) Close() {
 }
 
 var _ = filepath.Join
+
+// ReadSourceControlDiff returns the working-tree diff for one file.
+func (g *Git) ReadSourceControlDiff(project, path string) (string, error) {
+	svc, ok := g.serviceFor(project)
+	if !ok {
+		return "", nil
+	}
+	return svc.Diff(context.Background(), path)
+}
+
+// ShowSourceControlFile returns the HEAD version of a file.
+func (g *Git) ShowSourceControlFile(project, path string) (string, error) {
+	svc, ok := g.serviceFor(project)
+	if !ok {
+		return "", nil
+	}
+	return svc.ShowFile(context.Background(), path)
+}
