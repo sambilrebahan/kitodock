@@ -59,6 +59,16 @@ const (
 	EvQueueLog = "queueworker:log"
 	// EvSourceControl announces a source control operation state change.
 	EvSourceControl = "sourcecontrol:operation"
+	// EvSSHData carries remote shell output chunks (payload includes id).
+	EvSSHData = "ssh:data"
+	// EvSSHExit announces a remote shell session ended.
+	EvSSHExit = "ssh:exit"
+	// EvDeployStep reports one deployment step's status change.
+	EvDeployStep = "deploy:step"
+	// EvDeployLine streams one output line of a running deployment.
+	EvDeployLine = "deploy:line"
+	// EvDeployDone reports a deployment run finishing (ok or error).
+	EvDeployDone = "deploy:done"
 	// EvDocumentsShutdownRequest asks the frontend to confirm quitting with
 	// unsaved editor buffers.
 	EvDocumentsShutdownRequest = "documents:shutdown-request"

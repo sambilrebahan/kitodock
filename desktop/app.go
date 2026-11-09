@@ -9,9 +9,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"kitodock/desktop/controllers"
 	"kitodock/internal/config"
+	"kitodock/internal/credentials"
 	"kitodock/internal/cron"
 	knode "kitodock/internal/nodejs"
 	"kitodock/internal/paths"
@@ -26,16 +28,18 @@ type App struct {
 
 	stack *services.Manager
 
-	System    *controllers.System
-	Services  *controllers.Services
-	Installer *controllers.Installer
-	Projects  *controllers.Projects
-	Dev       *controllers.Dev
-	Doctor    *controllers.Doctor
-	Terminal  *controllers.Terminal
-	CronQueue *controllers.CronQueue
-	Files     *controllers.Files
-	Git       *controllers.Git
+	System      *controllers.System
+	Services    *controllers.Services
+	Installer   *controllers.Installer
+	Projects    *controllers.Projects
+	Dev         *controllers.Dev
+	Doctor      *controllers.Doctor
+	Terminal    *controllers.Terminal
+	CronQueue   *controllers.CronQueue
+	Files       *controllers.Files
+	Git         *controllers.Git
+	SSH         *controllers.SSH
+	Deployments *controllers.Deployments
 
 	phpMgr *kphp.Manager
 
@@ -75,24 +79,32 @@ func NewApp(trayIcon []byte) *App {
 	cronQueueCtrl := controllers.NewCronQueue(bus, serving, func(jobs []cron.Job) error {
 		return cfg.SetCrons(jobsToRaw(jobs))
 	})
+	sshCtrl := controllers.NewSSH(bus, credentials.System{}, paths.SSHDir)
+	deployCtrl, err := controllers.NewDeployments(
+		bus, filepath.Join(paths.DeploymentsDir(), "index.json"), credentials.System{}, sshCtrl)
+	if err != nil {
+		panic(fmt.Sprintf("open deployment store: %v", err))
+	}
 
 	app := &App{
-		cfg:       cfg,
-		bus:       bus,
-		stack:     stack,
-		System:    system,
-		Services:  servicesCtrl,
-		Installer: installer,
-		Projects:  projectsCtrl,
-		Dev:       devCtrl,
-		Doctor:    doctorCtrl,
-		Terminal:  termCtrl,
-		CronQueue: cronQueueCtrl,
-		Files:     filesCtrl,
-		Git:       gitCtrl,
-		serving:   serving,
-		phpMgr:    phpMgr,
-		trayIcon:  trayIcon,
+		cfg:         cfg,
+		bus:         bus,
+		stack:       stack,
+		System:      system,
+		Services:    servicesCtrl,
+		Installer:   installer,
+		Projects:    projectsCtrl,
+		Dev:         devCtrl,
+		Doctor:      doctorCtrl,
+		Terminal:    termCtrl,
+		CronQueue:   cronQueueCtrl,
+		Files:       filesCtrl,
+		Git:         gitCtrl,
+		SSH:         sshCtrl,
+		Deployments: deployCtrl,
+		serving:     serving,
+		phpMgr:      phpMgr,
+		trayIcon:    trayIcon,
 	}
 	return app
 }

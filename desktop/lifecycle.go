@@ -109,6 +109,7 @@ func (a *App) shutdown(ctx context.Context) {
 	a.CronQueue.StopCron()
 	a.CronQueue.StopAllQueueWorkers()
 	a.Terminal.CloseAll()
+	a.SSH.CloseAllSSH()
 	a.stack.StopAll()
 	StopTray()
 	a.ctx = nil

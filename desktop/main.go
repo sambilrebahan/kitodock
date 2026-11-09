@@ -71,6 +71,8 @@ func main() {
 			app.CronQueue,
 			app.Files,
 			app.Git,
+			app.SSH,
+			app.Deployments,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,

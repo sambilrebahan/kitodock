@@ -89,6 +89,14 @@ func PHPDir() string      { return filepath.Join(Root(), "php") }
 func CmderRoot() string   { return filepath.Join(Root(), "cmder") }
 func NodeDir() string     { return filepath.Join(Root(), "nodejs") }
 
+// SSHDir holds the generated key files, the saved host registry and the
+// known_hosts TOFU database. Everything under it is owner-only.
+func SSHDir() string { return filepath.Join(Root(), "ssh") }
+
+// DeploymentsDir holds the deployment index and the sealed per-run logs.
+// It lives under state because it is app data, not a service home.
+func DeploymentsDir() string { return filepath.Join(StateDir(), "deployments") }
+
 // DownloadsCache is where installer archives wait for extraction. It lives
 // in the OS temp area on purpose: it is a cache, never user data, and a
 // portable environment should not carry hundreds of megabytes of zips
