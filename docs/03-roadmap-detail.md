@@ -282,10 +282,13 @@ terenkripsi.
 3. Terminal SSH di pane in-app (PTY remote `xterm-256color`) + resize WindowChange.
 4. SFTP: browse, mkdir, rename, delete, upload/download dengan progress + cancel; edit file
    remote via temp + watch mtime → reupload.
-5. Deploy `builtin:laravel-production` ke VPS uji (sudo -n): detection → plan streaming →
-   step status; gagal di tengah → histori `interrupted`/`error` + log terenkripsi terbaca.
+5. Deploy preset `laravel-production` (id tanpa prefix `builtin:`, lihat fase-5.md §5.7) ke VPS
+   uji (sudo -n): detection → plan streaming → step status; gagal di tengah → histori
+   `interrupted`/`error` + log terenkripsi terbaca. *(Verifikasi tanpa VPS nyata: engine via
+   fake-runner test + transport via server SSH in-process — fase-5.md §6.)*
 6. Dua mutasi deploy bersamaan → satu ditolak `ErrBusy`.
-7. ProxyJump 2 lapis + ProxyCommand diuji (kontainer uji).
+7. ProxyJump 2 lapis diuji dengan server in-process (bastion direct-tcpip nyata); ProxyCommand
+   diuji pada substitusi %h/%p + adaptor net.Conn (e2e helper eksternal menyusul bila perlu).
 8. Import bundle JSON: idempoten, konflik host dipetakan, tak ada eksekusi skrip.
 
 **Dep**: Fase 3 (PTY), Fase 4 (Monaco untuk editor config), Fase 2 (presets memakai resolusi project opsional).

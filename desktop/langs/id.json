@@ -295,7 +295,8 @@
     "tab": "Tab",
     "split": "Split",
     "splitH": "Split horizontal",
-    "splitV": "Split vertikal"
+    "splitV": "Split vertikal",
+    "sshTab": "Host SSH…"
   },
   "cron": {
     "title": "Cron",
@@ -374,7 +375,25 @@
     "keyBits": "Bit RSA",
     "generateKey": "Buat kunci",
     "publicKey": "Kunci publik",
-    "copy": "Salin"
+    "copy": "Salin",
+    "lastUsed": "Terakhir dipakai",
+    "connectTimeline": "Koneksi",
+    "tags": "Tag",
+    "jumpHosts": "Host jump",
+    "proxyCommand": "Proxy command",
+    "pickLocalDir": "Pilih folder lokal",
+    "chooseDir": "folder…",
+    "cancel": "Batal",
+    "transferError": "gagal",
+    "transferDone": "selesai",
+    "editFile": "Edit di Kitodock",
+    "editExternal": "Edit di editor lokal",
+    "externalEditActive": "Memantau edit lokal",
+    "reveal": "Tampilkan",
+    "stopWatching": "Stop",
+    "saveRemote": "Simpan remote",
+    "importKey": "Impor kunci",
+    "privateKeyPem": "Kunci privat (PEM)"
   },
   "deployments": {
     "title": "Deployment",
@@ -405,6 +424,23 @@
       "apply": "apply",
       "deploy": "deploy",
       "destroy": "destroy"
-    }
+    },
+    "destroy": "Destroy",
+    "destroyConfirm": " Sekalian drop database \"{{name}}\"?",
+    "destroyDropDb": "Pilih Ya untuk drop database juga; Tidak mempertahankannya.",
+    "destroyTitle": "Destroy \"{{name}}\"?",
+    "destroyWarning": "vhost dan webroot dihapus (webroot diarsipkan dulu selama seminggu). Tidak bisa dibatalkan dari Kitodock.",
+    "destroyRunning": "destroy berjalan",
+    "importBundle": "Impor bundle",
+    "exportBundle": "Ekspor bundle",
+    "exportDone": "Bundle diekspor.",
+    "importReport": "Diimpor: {{hostsAdded}} host, {{deploymentsAdded}} deployment, {{skipped}} dilewati.",
+    "importConflicts": "konflik",
+    "dbEngine": "Database",
+    "dbName": "Nama database",
+    "dbNone": "tanpa",
+    "ssl": "SSL (certbot)",
+    "showScript": "lihat script",
+    "hideScript": "sembunyikan script"
   }
 }

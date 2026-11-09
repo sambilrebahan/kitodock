@@ -14,7 +14,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // KeyType identifies an SSH key algorithm.
@@ -112,6 +115,29 @@ func ReadPublicKey(path string) (string, error) {
 
 // ListKeys returns all key names in a directory.
 func ListKeys(keysDir string) ([]string, error) {
+	infos, err := InspectKeys(keysDir)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(infos))
+	for i, info := range infos {
+		names[i] = info.Name
+	}
+	return names, nil
+}
+
+// KeyInfo describes one saved key file.
+type KeyInfo struct {
+	Name string `json:"name"`
+	// Algorithm is the SSH key type (ssh-ed25519, ssh-rsa, ecdsa-*).
+	Algorithm string `json:"algorithm"`
+	// Fingerprint is the SHA256 digest of the public key.
+	Fingerprint string `json:"fingerprint"`
+}
+
+// InspectKeys lists every parseable key with its algorithm and
+// fingerprint; stray files are skipped rather than failing the listing.
+func InspectKeys(keysDir string) ([]KeyInfo, error) {
 	entries, err := os.ReadDir(keysDir)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -119,22 +145,58 @@ func ListKeys(keysDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var names []string
+	var out []KeyInfo
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		name := e.Name()
-		// Skip public keys and dotfiles.
 		if filepath.Ext(name) == ".pub" || strings.HasPrefix(name, ".") {
 			continue
 		}
-		// Only list files that actually parse as private keys, so stray
-		// notes or unrelated files never show up as selectable keys.
-		if _, err := ReadPublicKey(filepath.Join(keysDir, name)); err != nil {
+		signer, err := parsePrivateKeyFile(filepath.Join(keysDir, name))
+		if err != nil {
 			continue
 		}
-		names = append(names, name)
+		out = append(out, KeyInfo{
+			Name:        name,
+			Algorithm:   signer.PublicKey().Type(),
+			Fingerprint: ssh.FingerprintSHA256(signer.PublicKey()),
+		})
 	}
-	return names, nil
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// parsePrivateKeyFile reads and parses a private key file.
+func parsePrivateKeyFile(path string) (ssh.Signer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return parsePrivateKey(data)
+}
+
+// ImportKey validates and saves an externally supplied private key PEM
+// under the given name, refusing to overwrite an existing key.
+func ImportKey(keysDir, name string, pemData []byte) (string, error) {
+	if strings.TrimSpace(name) == "" {
+		return "", fmt.Errorf("key name is required")
+	}
+	if _, err := parsePrivateKey(pemData); err != nil {
+		return "", fmt.Errorf("not a usable private key: %w", err)
+	}
+	path := filepath.Join(keysDir, name)
+	if _, err := os.Stat(path); err == nil {
+		return "", fmt.Errorf("key %q already exists", name)
+	}
+	if err := SaveKey(path, pemData); err != nil {
+		return "", err
+	}
+	// Also drop the public half next to it for completeness.
+	publicKey, err := ReadPublicKey(path)
+	if err == nil {
+		_ = os.WriteFile(path+".pub", []byte(publicKey), 0o644)
+	}
+	return publicKey, nil
 }

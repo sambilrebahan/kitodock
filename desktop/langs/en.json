@@ -295,7 +295,8 @@
     "tab": "Tab",
     "split": "Split",
     "splitH": "Split horizontally",
-    "splitV": "Split vertically"
+    "splitV": "Split vertically",
+    "sshTab": "SSH host…"
   },
   "cron": {
     "title": "Cron",
@@ -374,7 +375,25 @@
     "keyBits": "RSA bits",
     "generateKey": "Generate key",
     "publicKey": "Public key",
-    "copy": "Copy"
+    "copy": "Copy",
+    "lastUsed": "Last used",
+    "connectTimeline": "Connection",
+    "tags": "Tags",
+    "jumpHosts": "Jump hosts",
+    "proxyCommand": "Proxy command",
+    "pickLocalDir": "Choose a local folder",
+    "chooseDir": "folder…",
+    "cancel": "Cancel",
+    "transferError": "failed",
+    "transferDone": "done",
+    "editFile": "Edit in Kitodock",
+    "editExternal": "Edit in local editor",
+    "externalEditActive": "Watching local edits",
+    "reveal": "Show file",
+    "stopWatching": "Stop",
+    "saveRemote": "Save remote",
+    "importKey": "Import key",
+    "privateKeyPem": "Private key (PEM)"
   },
   "deployments": {
     "title": "Deployments",
@@ -405,6 +424,23 @@
       "apply": "apply",
       "deploy": "deploy",
       "destroy": "destroy"
-    }
+    },
+    "destroy": "Destroy",
+    "destroyConfirm": "Also drop the database of \"{{name}}\"?",
+    "destroyDropDb": "Choose Yes to drop the database too; No keeps it.",
+    "destroyTitle": "Destroy \"{{name}}\"?",
+    "destroyWarning": "The vhost and webroot are removed (webroot is archived aside for a week). This cannot be undone from Kitodock.",
+    "destroyRunning": "destroy in progress",
+    "importBundle": "Import bundle",
+    "exportBundle": "Export bundle",
+    "exportDone": "Bundle exported.",
+    "importReport": "Imported: {{hostsAdded}} hosts, {{deploymentsAdded}} deployments, {{skipped}} skipped.",
+    "importConflicts": "conflicts",
+    "dbEngine": "Database",
+    "dbName": "Database name",
+    "dbNone": "none",
+    "ssl": "SSL (certbot)",
+    "showScript": "show script",
+    "hideScript": "hide script"
   }
 }

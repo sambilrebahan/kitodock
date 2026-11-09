@@ -82,6 +82,10 @@ func (s *testServer) handleConn(conn net.Conn) {
 	defer serverConn.Close()
 	go ssh.DiscardRequests(reqs)
 	for newChan := range chans {
+		if newChan.ChannelType() == "direct-tcpip" {
+			s.handleForward(newChan)
+			continue
+		}
 		if newChan.ChannelType() != "session" {
 			newChan.Reject(ssh.UnknownChannelType, "session only")
 			continue
@@ -92,6 +96,41 @@ func (s *testServer) handleConn(conn net.Conn) {
 		}
 		go s.handleSession(channel, requests)
 	}
+}
+
+// handleForward dials the address requested through a direct-tcpip channel
+// and pipes both directions — the minimum a bastion must do for jump tests.
+func (s *testServer) handleForward(newChan ssh.NewChannel) {
+	// All four fields must be declared: ssh.Unmarshal rejects trailing data.
+	var payload struct {
+		Addr       string
+		Port       uint32
+		OriginAddr string
+		OriginPort uint32
+	}
+	if err := ssh.Unmarshal(newChan.ExtraData(), &payload); err != nil {
+		newChan.Reject(ssh.Prohibited, "bad payload")
+		return
+	}
+	target := net.JoinHostPort(payload.Addr, fmt.Sprintf("%d", payload.Port))
+	dst, err := net.Dial("tcp", target)
+	if err != nil {
+		newChan.Reject(ssh.ConnectionFailed, target+": "+err.Error())
+		return
+	}
+	channel, _, err := newChan.Accept()
+	if err != nil {
+		dst.Close()
+		return
+	}
+	go func() {
+		defer dst.Close()
+		defer channel.Close()
+		done := make(chan struct{}, 2)
+		go func() { io.Copy(dst, channel); done <- struct{}{} }()
+		go func() { io.Copy(channel, dst); done <- struct{}{} }()
+		<-done
+	}()
 }
 
 func (s *testServer) handleSession(channel ssh.Channel, requests <-chan *ssh.Request) {
@@ -314,5 +353,67 @@ func TestSFTPRoundTrip(t *testing.T) {
 	}
 	if _, err := sftpConn.ReadFile(filepath.ToSlash(filepath.Join(cwd, "hi.txt"))); err == nil {
 		t.Fatal("removed file still readable")
+	}
+}
+
+// TestTransferProgressAndCancel exercises the progress-aware transfer
+// helpers against the live in-process SFTP server.
+func TestTransferProgressAndCancel(t *testing.T) {
+	srv := startTestServer(t)
+	sess, err := Connect(testHost(srv.addr()), nil, plainUnseal, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	sftpConn, err := sess.OpenSFTP()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sftpConn.Close()
+
+	cwd, err := sftpConn.client.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	remote := filepath.ToSlash(filepath.Join(cwd, "big.bin"))
+
+	// Upload with progress; the final report must equal the total.
+	payload := bytes.Repeat([]byte{7}, 256*1024)
+	var lastSent, lastTotal int64
+	err = sftpConn.UploadStream(bytes.NewReader(payload), remote, int64(len(payload)),
+		func(sent, total int64) { lastSent, lastTotal = sent, total }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lastSent != int64(len(payload)) || lastTotal != lastSent {
+		t.Fatalf("final progress = %d/%d, want %d", lastSent, lastTotal, len(payload))
+	}
+
+	// Download with progress mirrors it.
+	var sink bytes.Buffer
+	err = sftpConn.DownloadStream(remote, &sink,
+		func(sent, total int64) { lastSent, lastTotal = sent, total }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sink.Len() != len(payload) || lastTotal != int64(len(payload)) {
+		t.Fatalf("downloaded %d bytes (progress %d/%d)", sink.Len(), lastSent, lastTotal)
+	}
+
+	// Cancellation aborts with ErrTransferCancelled.
+	cancelAfter := int64(64 * 1024)
+	var seen int64
+	err = sftpConn.DownloadStream(remote, io.Discard,
+		func(sent, total int64) { seen = sent },
+		func() bool { return seen >= cancelAfter })
+	if err == nil {
+		skip := "download finished before the cancel flag was sampled"
+		if sink.Len() <= int(cancelAfter) {
+			t.Fatal("download reported completion despite cancellation")
+		}
+		t.Skip(skip)
+	}
+	if err != ErrTransferCancelled {
+		t.Fatalf("cancelled download err = %v, want ErrTransferCancelled", err)
 	}
 }

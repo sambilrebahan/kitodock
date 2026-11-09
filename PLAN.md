@@ -86,9 +86,11 @@ Fase 2).
 > (ConPTY+terminal workspace tab/split, cron+Task Scheduler, queue worker; 25 paket hijau; audit 7,2%/0 komentar).
 > **Fase 4 selesai** 2026-11-08 — lihat [docs/progress/fase-4.md](docs/progress/fase-4.md)
 > (workspacefiles+Monaco editor+git panel; 28 paket hijau; audit 6,9%/0 komentar).
-> **Fase 5 selesai** 2026-11-09 — lihat [docs/progress/fase-5.md](docs/progress/fase-5.md)
-> (ssh keys/hosts/TOFU/SFTP + deploy engine + deployments store; server SSH in-process untuk
-> testing; 32 paket hijau; audit 0 komentar, 0 ekspresi identik).
+> **Fase 5 selesai** 2026-11-09 (termasuk ronde penutupan celah AC) — lihat
+> [docs/progress/fase-5.md](docs/progress/fase-5.md)
+> (ssh keys/hosts/TOFU/jump/SFTP progress-cancel-freeze + deploy engine redacted + destroy +
+> bundle import/export + 3 preset; pane SSH di terminal workspace; 33 paket hijau;
+> audit 0 komentar prosa identik).
 
 ## 5. Estimasi Effort Relatif
 

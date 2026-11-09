@@ -113,3 +113,81 @@ func TestEffectiveDomainPrefix(t *testing.T) {
 		t.Fatalf("host = %+v", h)
 	}
 }
+
+func TestInspectKeys(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := GenerateKey(KeyEd25519, 0); err != nil {
+		t.Fatal(err)
+	}
+	priv, _, err := GenerateKey(KeyRSA, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveKey(filepath.Join(dir, "rsa_deploy"), priv); err != nil {
+		t.Fatal(err)
+	}
+	priv, _, err = GenerateKey(KeyEd25519, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveKey(filepath.Join(dir, "edge_key"), priv); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("x"), 0o644)
+
+	infos, err := InspectKeys(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(infos) != 2 {
+		t.Fatalf("InspectKeys = %+v, want 2 entries", infos)
+	}
+	byName := map[string]KeyInfo{}
+	for _, info := range infos {
+		byName[info.Name] = info
+	}
+	if byName["edge_key"].Algorithm != "ssh-ed25519" {
+		t.Fatalf("edge_key algorithm = %q", byName["edge_key"].Algorithm)
+	}
+	if byName["rsa_deploy"].Algorithm != "ssh-rsa" {
+		t.Fatalf("rsa_deploy algorithm = %q", byName["rsa_deploy"].Algorithm)
+	}
+	for _, info := range infos {
+		if !strings.HasPrefix(info.Fingerprint, "SHA256:") {
+			t.Fatalf("fingerprint = %q", info.Fingerprint)
+		}
+	}
+}
+
+func TestImportKey(t *testing.T) {
+	dir := t.TempDir()
+	priv, pub, err := GenerateKey(KeyEd25519, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gotPub, err := ImportKey(dir, "imported", priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPub != pub {
+		t.Fatalf("ImportKey returned public key %q, want the generated one", gotPub)
+	}
+
+	names, err := ListKeys(dir)
+	if err != nil || len(names) != 1 || names[0] != "imported" {
+		t.Fatalf("ListKeys after import = %v err=%v", names, err)
+	}
+
+	// Duplicate names are refused; garbage is refused without saving.
+	if _, err := ImportKey(dir, "imported", priv); err == nil {
+		t.Fatal("duplicate import accepted")
+	}
+	if _, err := ImportKey(dir, "junk", []byte("not a key")); err == nil {
+		t.Fatal("garbage accepted")
+	}
+	names, _ = ListKeys(dir)
+	if len(names) != 1 {
+		t.Fatalf("failed imports left files behind: %v", names)
+	}
+}

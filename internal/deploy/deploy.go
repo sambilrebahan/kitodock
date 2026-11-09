@@ -22,10 +22,8 @@ type ApplyConfig struct {
 	WebServer  string `json:"webServer"`  // "nginx"
 	PHPVersion string `json:"phpVersion"` // "8.3"
 
-	Database struct {
-		Engine string `json:"engine"` // "mysql" | "postgres" | ""
-		Name   string `json:"name"`
-	} `json:"database"`
+	// Database is the normalized database block; see NormalizeDatabaseAccess.
+	Database Database `json:"database"`
 
 	SSL struct {
 		Enabled bool   `json:"enabled"`
@@ -33,6 +31,23 @@ type ApplyConfig struct {
 	} `json:"ssl"`
 
 	AutoDeployCron string `json:"autoDeployCron"` // "*/5 * * * *"
+}
+
+// Database describes the remote database a deployment provisions. Access*
+// fields say where the application reaches it; User/Password are
+// provisioned on the server by the plan when empty.
+type Database struct {
+	// Engine: "mysql" | "postgres" | "" (no database).
+	Engine string `json:"engine"`
+	Name   string `json:"name"`
+	// User is the database user the app connects as.
+	User string `json:"user,omitempty"`
+	// Password is provisioned when empty (generated, stored sealed with
+	// the config). Never surfaced: the Redactor masks it.
+	Password string `json:"password,omitempty"`
+	// AccessHost/AccessPort default to 127.0.0.1 and the engine port.
+	AccessHost string `json:"accessHost,omitempty"`
+	AccessPort int    `json:"accessPort,omitempty"`
 }
 
 // EffectiveDomain prefixes the environment subdomain for non-production.
@@ -123,12 +138,21 @@ func RunDetection(run Runner) (*Detection, error) {
 }
 
 // BuildPlan generates the ordered bash steps to bring the server to the
-// ApplyConfig's desired state.
+// ApplyConfig's desired state. The database block is normalized first so
+// generated passwords and default ports are part of the plan.
 func BuildPlan(cfg ApplyConfig) []Step {
 	var steps []Step
 	add := func(title, cmd string, sudo, ignore bool) {
 		steps = append(steps, Step{Title: title, Command: cmd, Sudo: sudo, Ignore: ignore})
 	}
+
+	db, dbErr := NormalizeDatabaseAccess(cfg.Database)
+	if dbErr != nil {
+		// Surface the misconfiguration as the first failing step rather
+		// than refusing to build: the user sees exactly what to fix.
+		return []Step{{Title: "Validate database configuration", Command: "false", Sudo: false, Ignore: false}}
+	}
+	cfg.Database = db
 
 	domain := cfg.EffectiveDomain()
 	deployRoot := "/var/www/" + cfg.ProjectName
@@ -181,6 +205,15 @@ fi`,
 	add("Install dependencies",
 		fmt.Sprintf("cd %s && composer install --no-dev --optimize-autoloader --no-interaction", deployRoot),
 		false, false)
+
+	// Database provisioning (embedded scripts).
+	if db.Engine != "" {
+		add("Create database and grants", databaseCreateScript(db, deployRoot), true, false)
+		add("Write database environment",
+			fmt.Sprintf("cd %s && touch .env && grep -q '^DB_CONNECTION=' .env || cat >> .env <<'ENV'\n%s\nENV",
+				deployRoot, databaseEnvSnippet(db)),
+			false, false)
+	}
 
 	// Laravel setup.
 	if cfg.Kind == "laravel" {
@@ -243,6 +276,43 @@ VHOST`, cfg.ProjectName, vhost), true, false)
 				cfg.AutoDeployCron, deployRoot, cfg.GitBranch, cfg.ProjectName),
 			true, false)
 	}
+
+	return steps
+}
+
+// BuildDestroyPlan generates the teardown steps for a deployment: the vhost
+// and webroot are removed, the site disabled, nginx reloaded, and — only
+// when dropDatabase is true — the database dropped. The webroot step moves
+// the directory aside instead of rm -rf so a mistaken destroy is still
+// recoverable by an operator; the backup is pruned after a week.
+func BuildDestroyPlan(cfg ApplyConfig, dropDatabase bool) []Step {
+	var steps []Step
+	add := func(title, cmd string, sudo, ignore bool) {
+		steps = append(steps, Step{Title: title, Command: cmd, Sudo: sudo, Ignore: ignore})
+	}
+
+	deployRoot := "/var/www/" + cfg.ProjectName
+
+	add("Disable site",
+		fmt.Sprintf("rm -f /etc/nginx/sites-enabled/%s", cfg.ProjectName), true, true)
+	add("Remove nginx vhost",
+		fmt.Sprintf("rm -f /etc/nginx/sites-available/%s", cfg.ProjectName), true, true)
+	add("Remove auto-deploy cron",
+		fmt.Sprintf("rm -f /etc/cron.d/%s-deploy", cfg.ProjectName), true, true)
+	add("Test nginx configuration", "nginx -t", true, false)
+	add("Reload nginx", "systemctl reload nginx", true, false)
+
+	if dropDatabase && cfg.Database.Engine != "" && cfg.Database.Name != "" {
+		add("Drop database", databaseDropScript(cfg.Database), true, false)
+	}
+
+	add("Archive webroot",
+		fmt.Sprintf(`if [ -d %[1]s ]; then
+  mkdir -p /var/www/kitodock-destroyed
+  mv %[1]s /var/www/kitodock-destroyed/%[2]s-$(date +%%s)
+  find /var/www/kitodock-destroyed -maxdepth 1 -type d -name '%[2]s-*' -mtime +7 -exec rm -rf {} +
+fi`, deployRoot, cfg.ProjectName),
+		true, false)
 
 	return steps
 }

@@ -9,10 +9,12 @@ package controllers
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"kitodock/internal/credentials"
 	"kitodock/internal/paths"
@@ -28,18 +30,39 @@ type SSH struct {
 	sshDir func() string
 
 	mu sync.Mutex
-	// hosts/known are loaded lazily and reloaded on each access, so
-	// external edits (and a second window) are always picked up.
-	// conns maps connection IDs to live SSH clients.
-	conns map[string]*ssh.Session
+	// conns maps connection IDs to live SSH clients; connHosts remembers
+	// which saved host each connection belongs to.
+	conns     map[string]*ssh.Session
+	connHosts map[string]string
 	// shells maps shell IDs to live PTY-backed remote shells; shellConns
 	// remembers which connection each shell owns so closing a shell also
 	// closes its connection.
 	shells     map[string]*ssh.Session
 	shellConns map[string]string
-	// sftp maps SFTP session IDs to live SFTP clients.
-	sftp map[string]*ssh.SFTPSession
-	seq  atomic.Int64
+	// sftp maps SFTP session IDs to live clients, remembering the host
+	// each belongs to for freeze support.
+	sftp map[string]*sftpEntry
+	// transfers maps transfer IDs to cancellable upload/download state.
+	transfers map[string]*sftpTransfer
+	// edits maps external-edit session IDs to their watchers.
+	edits map[string]*remoteEdit
+	// frozen lists hosts whose SFTP listings are served from the snapshot
+	// cache (set while a deploy mutates the server); listingCache keeps
+	// the last live listing per host+path.
+	frozen       map[string]bool
+	listingCache map[string][]ssh.Entry
+	seq          atomic.Int64
+}
+
+// sftpEntry couples an SFTP client with the host it was opened for.
+type sftpEntry struct {
+	client *ssh.SFTPSession
+	host   string
+}
+
+// sftpTransfer tracks one cancellable transfer.
+type sftpTransfer struct {
+	cancel func()
 }
 
 // NewSSH builds the controller; sshDir may be nil (defaults to paths.SSHDir).
@@ -49,8 +72,11 @@ func NewSSH(bus *EventBus, sealer credentials.Sealer, sshDir func() string) *SSH
 	}
 	return &SSH{
 		bus: bus, sealer: sealer, sshDir: sshDir,
-		conns: map[string]*ssh.Session{}, shells: map[string]*ssh.Session{},
-		shellConns: map[string]string{}, sftp: map[string]*ssh.SFTPSession{},
+		conns: map[string]*ssh.Session{}, connHosts: map[string]string{},
+		shells: map[string]*ssh.Session{}, shellConns: map[string]string{},
+		sftp: map[string]*sftpEntry{}, transfers: map[string]*sftpTransfer{},
+		edits: map[string]*remoteEdit{}, frozen: map[string]bool{},
+		listingCache: map[string][]ssh.Entry{},
 	}
 }
 
@@ -131,50 +157,123 @@ func (c *SSH) ListSSHKeys() ([]string, error) {
 	return ssh.ListKeys(c.keysDir())
 }
 
+// InspectSSHKeys returns the saved keys with algorithm and fingerprint.
+func (c *SSH) InspectSSHKeys() ([]ssh.KeyInfo, error) {
+	return ssh.InspectKeys(c.keysDir())
+}
+
 // ReadSSHPublicKey returns the public key line for a saved key.
 func (c *SSH) ReadSSHPublicKey(name string) (string, error) {
 	return ssh.ReadPublicKey(filepath.Join(c.keysDir(), name))
 }
 
+// ImportSSHKey validates an externally supplied private key PEM, saves it
+// under the given name and returns its public key line.
+func (c *SSH) ImportSSHKey(name, pemData string) (string, error) {
+	return ssh.ImportKey(c.keysDir(), name, []byte(pemData))
+}
+
 // --- Connections ---------------------------------------------------------
 
 // ConnectSSH opens a connection to a saved host and returns its ID. The
-// server key is verified against known_hosts with trust-on-first-use.
+// server key is verified against known_hosts with trust-on-first-use,
+// jump chains and proxy commands are honored, and each dial stage is
+// announced as an ssh:connect:<host> event.
 func (c *SSH) ConnectSSH(hostName string) (string, error) {
-	store, err := ssh.LoadHostStore(c.hostsPath())
+	req, store, err := c.dialRequestFor(hostName)
 	if err != nil {
 		return "", err
 	}
-	host, ok := store.Find(hostName)
-	if !ok {
-		return "", fmt.Errorf("host %q not found", hostName)
+	host := req.Host
+
+	// Stage timeline for the UI; one event per marker, tagged per host.
+	req.OnStage = func(stage ssh.Stage) {
+		c.bus.Emit(EvSSHConnectStage, map[string]any{
+			"host": hostName, "stage": stage.Name,
+			"detail": stage.Detail, "ms": stage.Milliseconds,
+		})
 	}
 
-	var keyData []byte
-	if host.AuthMode == "key" {
-		if host.KeyName == "" {
-			return "", fmt.Errorf("host %q has no key selected", hostName)
-		}
-		keyData, err = os.ReadFile(filepath.Join(c.keysDir(), host.KeyName))
-		if err != nil {
-			return "", fmt.Errorf("read key %s: %w", host.KeyName, err)
-		}
+	session, err := ssh.DialTarget(req)
+	if err != nil {
+		return "", err
 	}
 
-	known, err := ssh.LoadKnownHosts(c.knownHostsPath())
-	if err != nil {
-		return "", err
-	}
-	session, err := ssh.Connect(host, keyData, c.sealer.Unseal, known.Callback())
-	if err != nil {
-		return "", err
-	}
+	// Record the use for the "recent hosts" ordering.
+	host.LastUsed = time.Now()
+	store.Upsert(host)
+	_ = store.Save()
 
 	id := fmt.Sprintf("c%d", c.seq.Add(1))
 	c.mu.Lock()
 	c.conns[id] = session
+	c.connHosts[id] = hostName
 	c.mu.Unlock()
 	return id, nil
+}
+
+// hostOfConn returns the saved-host name a connection belongs to.
+func (c *SSH) hostOfConn(connID string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.connHosts[connID]
+}
+
+// dialRequestFor assembles the dial request for a saved host, including
+// the jump resolver that pulls bastion credentials from the same store.
+func (c *SSH) dialRequestFor(hostName string) (ssh.DialRequest, *ssh.HostStore, error) {
+	store, err := ssh.LoadHostStore(c.hostsPath())
+	if err != nil {
+		return ssh.DialRequest{}, nil, err
+	}
+	host, ok := store.Find(hostName)
+	if !ok {
+		return ssh.DialRequest{}, nil, fmt.Errorf("host %q not found", hostName)
+	}
+	req, err := c.requestFromStore(store, host)
+	if err != nil {
+		return ssh.DialRequest{}, nil, err
+	}
+	req.ResolveJump = func(name string) (*ssh.DialRequest, error) {
+		jumpHost, ok := store.Find(name)
+		if !ok {
+			return nil, fmt.Errorf("jump host %q is not a saved host", name)
+		}
+		jumpReq, err := c.requestFromStore(store, jumpHost)
+		if err != nil {
+			return nil, err
+		}
+		return &jumpReq, nil
+	}
+	return req, store, nil
+}
+
+// requestFromStore builds the dial request for one host from the store,
+// loading its private key when it authenticates that way.
+func (c *SSH) requestFromStore(store *ssh.HostStore, host ssh.Host) (ssh.DialRequest, error) {
+	known, err := ssh.LoadKnownHosts(c.knownHostsPath())
+	if err != nil {
+		return ssh.DialRequest{}, err
+	}
+	req := ssh.DialRequest{
+		Host: host, Unseal: c.sealer.Unseal, HostKeyCb: known.Callback(),
+	}
+	if host.AuthMode == "key" {
+		if host.KeyName == "" {
+			return ssh.DialRequest{}, fmt.Errorf("host %q has no key selected", host.Name)
+		}
+		req.KeyData, err = os.ReadFile(filepath.Join(c.keysDir(), host.KeyName))
+		if err != nil {
+			return ssh.DialRequest{}, fmt.Errorf("read key %s: %w", host.KeyName, err)
+		}
+	}
+	return req, nil
+}
+
+// hostStoreForImport exposes the loaded host store to the deployments
+// controller's bundle import.
+func (c *SSH) hostStoreForImport() (*ssh.HostStore, error) {
+	return ssh.LoadHostStore(c.hostsPath())
 }
 
 // SSHRun executes one command over a connection.
@@ -204,18 +303,29 @@ func (c *SSH) CloseAllSSH() {
 	for id, s := range c.conns {
 		conns = append(conns, s)
 		delete(c.conns, id)
+		delete(c.connHosts, id)
 	}
 	for id, s := range c.shells {
 		s.Close()
 		delete(c.shells, id)
+		delete(c.shellConns, id)
 	}
-	for id, s := range c.sftp {
-		s.Close()
+	for id, entry := range c.sftp {
+		entry.client.Close()
 		delete(c.sftp, id)
+	}
+	edits := make([]*remoteEdit, 0, len(c.edits))
+	for id, edit := range c.edits {
+		edits = append(edits, edit)
+		delete(c.edits, id)
 	}
 	c.mu.Unlock()
 	for _, s := range conns {
 		s.Close()
+	}
+	for _, edit := range edits {
+		close(edit.stopCh)
+		os.Remove(edit.view.LocalPath)
 	}
 }
 
@@ -330,29 +440,61 @@ func (c *SSH) OpenSFTP(connID string) (string, error) {
 	}
 	id := fmt.Sprintf("f%d", c.seq.Add(1))
 	c.mu.Lock()
-	c.sftp[id] = client
+	c.sftp[id] = &sftpEntry{client: client, host: c.hostOfConnLocked(connID)}
 	c.mu.Unlock()
 	return id, nil
 }
 
+// hostOfConnLocked is hostOfConn for callers already holding the mutex.
+func (c *SSH) hostOfConnLocked(connID string) string { return c.connHosts[connID] }
+
 // CloseSFTP ends an SFTP session.
 func (c *SSH) CloseSFTP(id string) {
 	c.mu.Lock()
-	client := c.sftp[id]
+	entry := c.sftp[id]
 	delete(c.sftp, id)
 	c.mu.Unlock()
-	if client != nil {
-		client.Close()
+	if entry != nil {
+		entry.client.Close()
 	}
 }
 
-// SFTPList lists a remote directory.
+// SFTPList lists a remote directory. While the host is frozen (a deploy
+// run is mutating it), previously seen paths serve their snapshot; paths
+// not yet cached refuse rather than read half-written state.
 func (c *SSH) SFTPList(id, path string) ([]ssh.Entry, error) {
-	client := c.sftpClient(id)
-	if client == nil {
+	entry := c.sftpClient(id)
+	if entry == nil {
 		return nil, fmt.Errorf("sftp %s not found", id)
 	}
-	return client.List(path)
+	cacheKey := entry.host + "|" + path
+	c.mu.Lock()
+	frozen := c.frozen[entry.host]
+	cached, hasCache := c.listingCache[cacheKey]
+	c.mu.Unlock()
+
+	if frozen {
+		if !hasCache {
+			return nil, fmt.Errorf("%s is being mutated by a deployment run; %s was not listed before it started",
+				entry.host, path)
+		}
+		return cached, nil
+	}
+	entries, err := entry.client.List(path)
+	if err != nil {
+		return nil, err
+	}
+	c.mu.Lock()
+	c.listingCache[cacheKey] = entries
+	c.mu.Unlock()
+	return entries, nil
+}
+
+// SetHostFrozen toggles the snapshot mode for one host's SFTP listings.
+func (c *SSH) SetHostFrozen(hostName string, frozen bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.frozen[hostName] = frozen
 }
 
 // SFTPMkdir creates a remote directory.
@@ -361,7 +503,7 @@ func (c *SSH) SFTPMkdir(id, path string) error {
 	if client == nil {
 		return fmt.Errorf("sftp %s not found", id)
 	}
-	return client.Mkdir(path)
+	return client.client.Mkdir(path)
 }
 
 // SFTPRemove deletes a remote file.
@@ -370,7 +512,7 @@ func (c *SSH) SFTPRemove(id, path string) error {
 	if client == nil {
 		return fmt.Errorf("sftp %s not found", id)
 	}
-	return client.Remove(path)
+	return client.client.Remove(path)
 }
 
 // SFTPRename renames a remote file.
@@ -379,7 +521,7 @@ func (c *SSH) SFTPRename(id, oldPath, newPath string) error {
 	if client == nil {
 		return fmt.Errorf("sftp %s not found", id)
 	}
-	return client.Rename(oldPath, newPath)
+	return client.client.Rename(oldPath, newPath)
 }
 
 // SFTPReadFile returns a small remote file's content (config editing).
@@ -388,7 +530,7 @@ func (c *SSH) SFTPReadFile(id, path string) (string, error) {
 	if client == nil {
 		return "", fmt.Errorf("sftp %s not found", id)
 	}
-	data, err := client.ReadFile(path)
+	data, err := client.client.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -401,7 +543,7 @@ func (c *SSH) SFTPWriteFile(id, path, content string) error {
 	if client == nil {
 		return fmt.Errorf("sftp %s not found", id)
 	}
-	return client.WriteFile(path, []byte(content))
+	return client.client.WriteFile(path, []byte(content))
 }
 
 // SFTPDownload copies a remote file to a local path.
@@ -415,7 +557,7 @@ func (c *SSH) SFTPDownload(id, remotePath, localPath string) error {
 		return fmt.Errorf("create %s: %w", localPath, err)
 	}
 	defer local.Close()
-	return client.Download(remotePath, local)
+	return client.client.Download(remotePath, local)
 }
 
 // SFTPUpload copies a local file to a remote path.
@@ -429,10 +571,284 @@ func (c *SSH) SFTPUpload(id, localPath, remotePath string) error {
 		return fmt.Errorf("open %s: %w", localPath, err)
 	}
 	defer local.Close()
-	return client.Upload(local, remotePath)
+	return client.client.Upload(local, remotePath)
 }
 
-func (c *SSH) sftpClient(id string) *ssh.SFTPSession {
+// --- Progress-aware transfers ---------------------------------------------
+
+// SFTPUploadAsync starts a cancellable upload and returns its transfer ID.
+// Progress streams as sftp:progress:<id> {bytes,total}; completion (or
+// cancellation/error) is announced by sftp:done:<id> {error}.
+func (c *SSH) SFTPUploadAsync(id, localPath, remotePath string) (string, error) {
+	entry := c.sftpClient(id)
+	if entry == nil {
+		return "", fmt.Errorf("sftp %s not found", id)
+	}
+	info, err := os.Stat(localPath)
+	if err != nil {
+		return "", fmt.Errorf("open %s: %w", localPath, err)
+	}
+	transferID := fmt.Sprintf("t%d", c.seq.Add(1))
+	cancelFlag := newCancelFlag()
+	c.mu.Lock()
+	c.transfers[transferID] = &sftpTransfer{cancel: cancelFlag.Cancel}
+	c.mu.Unlock()
+
+	go c.runTransfer(transferID, func() error {
+		local, err := os.Open(localPath)
+		if err != nil {
+			return err
+		}
+		defer local.Close()
+		return entry.client.UploadStream(local, remotePath, info.Size(),
+			progressSink(c.bus, transferID), cancelFlag.Check)
+	})
+	return transferID, nil
+}
+
+// SFTPDownloadAsync is the download twin of SFTPUploadAsync.
+func (c *SSH) SFTPDownloadAsync(id, remotePath, localPath string) (string, error) {
+	entry := c.sftpClient(id)
+	if entry == nil {
+		return "", fmt.Errorf("sftp %s not found", id)
+	}
+	transferID := fmt.Sprintf("t%d", c.seq.Add(1))
+	cancelFlag := newCancelFlag()
+	c.mu.Lock()
+	c.transfers[transferID] = &sftpTransfer{cancel: cancelFlag.Cancel}
+	c.mu.Unlock()
+
+	go c.runTransfer(transferID, func() error {
+		local, err := os.Create(localPath)
+		if err != nil {
+			return err
+		}
+		defer local.Close()
+		return entry.client.DownloadStream(remotePath, local,
+			progressSink(c.bus, transferID), cancelFlag.Check)
+	})
+	return transferID, nil
+}
+
+// CancelSFTPTransfer aborts a running transfer; its sftp:done event
+// carries the cancellation error.
+func (c *SSH) CancelSFTPTransfer(transferID string) {
+	c.mu.Lock()
+	transfer := c.transfers[transferID]
+	c.mu.Unlock()
+	if transfer != nil {
+		transfer.cancel()
+	}
+}
+
+// runTransfer executes one transfer body and reports completion.
+func (c *SSH) runTransfer(transferID string, body func() error) {
+	err := body()
+	c.mu.Lock()
+	delete(c.transfers, transferID)
+	c.mu.Unlock()
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
+	c.bus.Emit(sftpDonePrefix+transferID, map[string]any{
+		"id": transferID, "error": msg,
+	})
+}
+
+// progressSink turns ssh.Progress into bus events.
+func progressSink(bus *EventBus, transferID string) ssh.Progress {
+	return func(sent, total int64) {
+		bus.Emit(sftpProgressPrefix+transferID, map[string]any{
+			"id": transferID, "bytes": sent, "total": total,
+		})
+	}
+}
+
+// cancelFlag is a thread-safe boolean set once by Cancel.
+type cancelFlag struct {
+	mu        sync.Mutex
+	cancelled bool
+}
+
+func newCancelFlag() *cancelFlag { return &cancelFlag{} }
+
+func (f *cancelFlag) Cancel() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cancelled = true
+}
+
+func (f *cancelFlag) Check() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cancelled
+}
+
+// LocalEntry is one item in a local directory listing (SFTP dual pane).
+type LocalEntry struct {
+	Name  string `json:"name"`
+	IsDir bool   `json:"isDir"`
+	Size  int64  `json:"size"`
+}
+
+// ListLocalDir lists a local directory for the SFTP browser's local pane.
+// An empty path lists the user's home directory as the starting point.
+func (c *SSH) ListLocalDir(path string) ([]LocalEntry, error) {
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		path = home
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]LocalEntry, 0, len(entries))
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue // vanished between listing and stat
+		}
+		out = append(out, LocalEntry{
+			Name: e.Name(), IsDir: e.IsDir(), Size: info.Size(),
+		})
+	}
+	return out, nil
+}
+
+// ReadLocalTextFile reads a small local text file (bundle import).
+func (c *SSH) ReadLocalTextFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// WriteLocalTextFile writes a small local text file (bundle export).
+func (c *SSH) WriteLocalTextFile(path, content string) error {
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+// --- External edit sessions -------------------------------------------------
+
+// RemoteEditView describes one open "edit remote file in a local editor"
+// session.
+type RemoteEditView struct {
+	ID         string `json:"id"`
+	RemotePath string `json:"remotePath"`
+	LocalPath  string `json:"localPath"`
+	Host       string `json:"host"`
+}
+
+// remoteEdit watches a downloaded copy's mtime and re-uploads on change.
+type remoteEdit struct {
+	view     RemoteEditView
+	sftpID   string
+	lastMod  time.Time
+	lastSize int64
+	stopCh   chan struct{}
+}
+
+// StartRemoteEdit downloads a remote file to a temp copy, watches the
+// copy's mtime/size and re-uploads whenever the local editor saves. The
+// returned view carries the local path to reveal to the user.
+func (c *SSH) StartRemoteEdit(sftpID, remotePath string) (RemoteEditView, error) {
+	entry := c.sftpClient(sftpID)
+	if entry == nil {
+		return RemoteEditView{}, fmt.Errorf("sftp %s not found", sftpID)
+	}
+	name := filepath.Base(strings.ReplaceAll(remotePath, `\`, "/"))
+	tmp, err := os.CreateTemp("", "kitodock-edit-*-"+name)
+	if err != nil {
+		return RemoteEditView{}, err
+	}
+	localPath := tmp.Name()
+	tmp.Close()
+
+	if err := c.SFTPDownload(sftpID, remotePath, localPath); err != nil {
+		os.Remove(localPath)
+		return RemoteEditView{}, err
+	}
+	info, err := os.Stat(localPath)
+	if err != nil {
+		return RemoteEditView{}, err
+	}
+
+	id := fmt.Sprintf("e%d", c.seq.Add(1))
+	edit := &remoteEdit{
+		view:   RemoteEditView{ID: id, RemotePath: remotePath, LocalPath: localPath, Host: entry.host},
+		sftpID: sftpID, lastMod: info.ModTime(), lastSize: info.Size(),
+		stopCh: make(chan struct{}),
+	}
+	c.mu.Lock()
+	c.edits[id] = edit
+	c.mu.Unlock()
+	go c.watchEdit(edit)
+	return edit.view, nil
+}
+
+// watchEdit polls the local copy and re-uploads on every save.
+func (c *SSH) watchEdit(edit *remoteEdit) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-edit.stopCh:
+			return
+		case <-ticker.C:
+			info, err := os.Stat(edit.view.LocalPath)
+			if err != nil {
+				continue // temp copy vanished; keep watching
+			}
+			if info.ModTime().Equal(edit.lastMod) && info.Size() == edit.lastSize {
+				continue
+			}
+			edit.lastMod = info.ModTime()
+			edit.lastSize = info.Size()
+			data, err := os.ReadFile(edit.view.LocalPath)
+			if err != nil {
+				continue
+			}
+			err = c.SFTPWriteFile(edit.sftpID, edit.view.RemotePath, string(data))
+			action := "reuploaded"
+			if err != nil {
+				action = "error: " + err.Error()
+			}
+			c.bus.Emit(EvSSHExternalEdit, map[string]any{
+				"id": edit.view.ID, "action": action,
+				"remotePath": edit.view.RemotePath,
+			})
+		}
+	}
+}
+
+// StopRemoteEdit ends a watch session; the temp copy is removed unless
+// keepLocal is true.
+func (c *SSH) StopRemoteEdit(id string, keepLocal bool) {
+	c.mu.Lock()
+	edit := c.edits[id]
+	delete(c.edits, id)
+	c.mu.Unlock()
+	if edit == nil {
+		return
+	}
+	close(edit.stopCh)
+	if !keepLocal {
+		os.Remove(edit.view.LocalPath)
+	}
+}
+
+// RevealLocalPath opens the file's folder in Explorer with the file
+// selected, so the user can edit it with any local tool.
+func (c *SSH) RevealLocalPath(path string) error {
+	return exec.Command("explorer", "/select,"+path).Start()
+}
+
+func (c *SSH) sftpClient(id string) *sftpEntry {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.sftp[id]

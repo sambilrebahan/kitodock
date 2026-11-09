@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -40,26 +41,79 @@ func LoadKnownHosts(path string) (*KnownHosts, error) {
 
 // Callback returns an ssh.HostKeyCallback implementing TOFU. hostArg is
 // usually the same address the dialer used; both "[host]:port" and
-// "host:port" normalize to the same entry.
+// "host:port" normalize to the same entry. First use records the key with
+// a locked read-modify-write so a concurrent process's entries survive;
+// a mismatch is re-checked from disk before failing so stale in-memory
+// views never raise a false man-in-the-middle alarm.
 func (k *KnownHosts) Callback() ssh.HostKeyCallback {
 	return func(hostArg string, remote net.Addr, key ssh.PublicKey) error {
 		addr := normalizeHostKeyAddr(hostArg)
 		b64 := base64.StdEncoding.EncodeToString(key.Marshal())
-		known, seen := k.entries[addr]
-		if !seen {
-			k.entries[addr] = b64
-			if err := k.save(); err != nil {
-				return fmt.Errorf("record host key: %w", err)
+
+		if known, seen := k.entries[addr]; seen {
+			if known == b64 {
+				return nil
 			}
+			disk, err := k.currentEntry(addr)
+			if err != nil {
+				return err
+			}
+			if disk != b64 {
+				return changedKeyError(addr, disk, b64)
+			}
+			k.entries[addr] = b64
 			return nil
 		}
-		if known != b64 {
-			return fmt.Errorf(
-				"host key for %s changed: recorded %s… now %s… — possible man-in-the-middle; remove the entry manually if the server was legitimately rebuilt",
-				addr, known[:12], b64[:12])
-		}
-		return nil
+		return k.recordFirstUse(addr, b64)
 	}
+}
+
+// changedKeyError is the loud failure for a server presenting a different
+// key than the recorded one.
+func changedKeyError(addr, recorded, presented string) error {
+	return fmt.Errorf(
+		"host key for %s changed: recorded %s… now %s… — possible man-in-the-middle; remove the entry manually if the server was legitimately rebuilt",
+		addr, recorded[:12], presented[:12])
+}
+
+// currentEntry re-reads one entry from disk while holding the lock.
+func (k *KnownHosts) currentEntry(addr string) (string, error) {
+	release, err := acquireLock(k.path)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	disk, err := LoadKnownHosts(k.path)
+	if err != nil {
+		return "", err
+	}
+	return disk.entries[addr], nil
+}
+
+// recordFirstUse merges a first-seen key into the on-disk store under the
+// lock, so parallel writers each preserve the others' entries.
+func (k *KnownHosts) recordFirstUse(addr, b64 string) error {
+	release, err := acquireLock(k.path)
+	if err != nil {
+		return fmt.Errorf("record host key: %w", err)
+	}
+	defer release()
+
+	if disk, err := LoadKnownHosts(k.path); err == nil {
+		for a, existing := range disk.entries {
+			if _, mine := k.entries[a]; !mine {
+				k.entries[a] = existing
+			}
+		}
+		if known, seen := k.entries[addr]; seen && known != b64 {
+			return changedKeyError(addr, known, b64)
+		}
+	}
+	k.entries[addr] = b64
+	if err := k.saveLocked(); err != nil {
+		return fmt.Errorf("record host key: %w", err)
+	}
+	return nil
 }
 
 // Trust replaces/records the key for an address without connecting (used
@@ -93,7 +147,64 @@ func (k *KnownHosts) Fingerprints() map[string]string {
 	return out
 }
 
+// Algorithms returns addr → SSH key type of the recorded server key
+// (ssh-ed25519, ssh-rsa, …), so users can see which algorithms they trust.
+func (k *KnownHosts) Algorithms() map[string]string {
+	out := make(map[string]string, len(k.entries))
+	for addr, b64 := range k.entries {
+		raw, err := base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			continue
+		}
+		if key, err := ssh.ParsePublicKey(raw); err == nil {
+			out[addr] = key.Type()
+		}
+	}
+	return out
+}
+
+// lockPath derives the advisory lock file path for a known_hosts file.
+func lockPath(path string) string { return path + ".lock" }
+
+// acquireLock takes the advisory lock guarding known_hosts writes across
+// processes. The lock is a create-exclusive marker file; a holder that died
+// without releasing leaves it behind, so a lock older than lockStaleAfter
+// is taken over.
+const lockStaleAfter = 5 * time.Second
+
+func acquireLock(path string) (release func(), err error) {
+	lock := lockPath(path)
+	deadline := time.Now().Add(lockStaleAfter)
+	for {
+		f, cerr := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if cerr == nil {
+			_ = f.Close()
+			return func() { os.Remove(lock) }, nil
+		}
+		if info, serr := os.Stat(lock); serr == nil && time.Since(info.ModTime()) > lockStaleAfter {
+			// Stale holder: reclaim. A racing reclaim shows up as a
+			// failing remove below, which is harmless.
+			_ = os.Remove(lock)
+			continue
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("known_hosts lock %s held by another process", lock)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func (k *KnownHosts) save() error {
+	release, err := acquireLock(k.path)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return k.saveLocked()
+}
+
+// saveLocked persists without touching the lock; the caller holds it.
+func (k *KnownHosts) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(k.path), 0o700); err != nil {
 		return err
 	}

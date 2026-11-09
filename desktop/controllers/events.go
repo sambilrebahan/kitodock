@@ -63,15 +63,36 @@ const (
 	EvSSHData = "ssh:data"
 	// EvSSHExit announces a remote shell session ended.
 	EvSSHExit = "ssh:exit"
-	// EvDeployStep reports one deployment step's status change.
-	EvDeployStep = "deploy:step"
-	// EvDeployLine streams one output line of a running deployment.
-	EvDeployLine = "deploy:line"
-	// EvDeployDone reports a deployment run finishing (ok or error).
-	EvDeployDone = "deploy:done"
+	// EvSSHConnectStage reports one dial stage (payload includes host).
+	EvSSHConnectStage = "ssh:connect-stage"
+	// EvSSHExternalEdit reports an external-edit watcher action.
+	EvSSHExternalEdit = "ssh:external-edit"
 	// EvDocumentsShutdownRequest asks the frontend to confirm quitting with
 	// unsaved editor buffers.
 	EvDocumentsShutdownRequest = "documents:shutdown-request"
+)
+
+// Deployment run events follow deployment:<kind>:<event>:<id> where kind
+// is apply | detect | destroy, event is step | line | done, and id is the
+// deployment ID — the UI subscribes once per deployment it shows.
+const (
+	deployEventPrefix = "deployment:"
+	// KindApply / KindDetect / KindDestroy name the run kinds in event
+	// names; they mirror deployments.Kind values.
+	KindApply   = "apply"
+	KindDetect  = "detect"
+	KindDestroy = "destroy"
+)
+
+// DeployEvent builds one deployment event name.
+func DeployEvent(kind, event, deploymentID string) string {
+	return deployEventPrefix + kind + ":" + event + ":" + deploymentID
+}
+
+// SFTP transfer events: sftp:progress:<transferID> and sftp:done:<transferID>.
+const (
+	sftpProgressPrefix = "sftp:progress:"
+	sftpDonePrefix     = "sftp:done:"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime

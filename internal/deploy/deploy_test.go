@@ -91,23 +91,45 @@ func TestBuildPlanStructure(t *testing.T) {
 	cfg.SSL.Enabled = true
 	cfg.SSL.Email = "admin@shop.com"
 	cfg.Database.Engine = "mysql"
+	cfg.Database.Name = "shop"
+	cfg.Database.Password = "hunter2hunter2"
 
 	steps := BuildPlan(cfg)
 	if len(steps) < 10 {
 		t.Fatalf("plan = %d steps, want substantial", len(steps))
 	}
+	titles := map[string]string{}
+	for _, s := range steps {
+		titles[s.Title] = s.Command
+	}
+	if cmd, ok := titles["Create database and grants"]; !ok || !strings.Contains(cmd, "CREATE DATABASE IF NOT EXISTS shop") {
+		t.Errorf("database create step missing or wrong: %q", cmd)
+	}
+	if cmd, ok := titles["Write database environment"]; !ok || !strings.Contains(cmd, "DB_DATABASE=shop") {
+		t.Errorf("database env step missing or wrong: %q", cmd)
+	}
+
+	// The database password is spliced into raw commands, and the
+	// redactor must mask it in anything shown or stored.
+	create := titles["Create database and grants"]
+	if !strings.Contains(create, "hunter2hunter2") {
+		t.Fatal("known password not spliced into create step")
+	}
+	if masked := RedactorFor(cfg).Redact(create); strings.Contains(masked, "hunter2hunter2") {
+		t.Fatal("redactor leaked the database password")
+	}
 
 	// Verify key steps are present.
-	titles := map[string]bool{}
+	present := map[string]bool{}
 	for _, s := range steps {
-		titles[s.Title] = true
+		present[s.Title] = true
 	}
 	for _, want := range []string{
 		"Update package list", "Install PHP 8.3", "Install nginx",
 		"Clone repository", "Run migrations", "Write nginx vhost",
 		"Obtain SSL certificate",
 	} {
-		if !titles[want] {
+		if !present[want] {
 			t.Errorf("missing step %q", want)
 		}
 	}
@@ -230,4 +252,150 @@ func TestRunApplyIgnoresFailures(t *testing.T) {
 	if len(runner.commands) != 2 {
 		t.Errorf("should run both steps, ran %d", len(runner.commands))
 	}
+}
+
+func TestRedactorMasksSecrets(t *testing.T) {
+	cfg := ApplyConfig{GitPAT: "ghp_secrettoken123", Database: Database{Password: "dbpass-dbpass"}}
+	r := RedactorFor(cfg)
+
+	cases := []struct{ in, want string }{
+		{"clone https://ghp_secrettoken123@github.com/u/r.git", "clone https://*****@github.com/u/r.git"},
+		{"mysql identified by 'dbpass-dbpass'", "mysql identified by '*****'"},
+		{"no secrets here", "no secrets here"},
+	}
+	for _, c := range cases {
+		if got := r.Redact(c.in); got != c.want {
+			t.Errorf("Redact(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+
+	// Unknown credentials inside URLs are masked by shape, even when the
+	// literal was never registered.
+	shaped := r.Redact("fatal: unable to access 'https://other:pw@x/y.git'")
+	if !strings.Contains(shaped, "*****@x/y.git") {
+		t.Errorf("shape masking = %q", shaped)
+	}
+
+	// Redacted steps keep structure but lose commands' secrets.
+	steps := []Step{{Title: "Clone", Command: "git clone https://ghp_secrettoken123@h/r.git"}}
+	masked := r.RedactSteps(steps)
+	if strings.Contains(masked[0].Command, "ghp_secrettoken123") {
+		t.Error("RedactSteps leaked the PAT")
+	}
+	if masked[0].Title != "Clone" || steps[0].Command == masked[0].Command {
+		t.Error("RedactSteps mutated structure or the original slice")
+	}
+
+	// Trivial secrets are not masked (noise) and String never leaks.
+	if NewRedactor("abc").Redact("abc") != "abc" {
+		t.Error("short secret should be ignored")
+	}
+	if s := r.String(); strings.Contains(s, "ghp") || strings.Contains(s, "dbpass") {
+		t.Errorf("String leaked: %q", s)
+	}
+}
+
+func TestNormalizeDatabaseAccess(t *testing.T) {
+	// No engine: disabled, untouched.
+	db, err := NormalizeDatabaseAccess(Database{})
+	if err != nil || db.Engine != "" {
+		t.Fatalf("disabled database errored: %v %+v", err, db)
+	}
+
+	// Defaults fill in port, host, user, password.
+	db, err = NormalizeDatabaseAccess(Database{Engine: "mysql", Name: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if db.AccessPort != DefaultMySQLPort || db.AccessHost != "127.0.0.1" || db.User != "root" {
+		t.Errorf("mysql defaults = %+v", db)
+	}
+	if len(db.Password) != 24 {
+		t.Errorf("generated password length = %d", len(db.Password))
+	}
+
+	db, err = NormalizeDatabaseAccess(Database{Engine: "postgres", Name: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if db.AccessPort != DefaultPostgresPort || db.User != "postgres" {
+		t.Errorf("postgres defaults = %+v", db)
+	}
+
+	// Provided values survive; generated passwords are stable across calls
+	// when already set.
+	given := Database{Engine: "mysql", Name: "shop", Password: "keepme-keepme", AccessPort: 6033, User: "svc", AccessHost: "db.lan"}
+	db, err = NormalizeDatabaseAccess(given)
+	if err != nil || db.Password != "keepme-keepme" || db.AccessPort != 6033 || db.User != "svc" || db.AccessHost != "db.lan" {
+		t.Errorf("explicit values not preserved: %+v err=%v", db, err)
+	}
+
+	// Errors: unknown engine; missing name; unsafe name.
+	if _, err := NormalizeDatabaseAccess(Database{Engine: "oracle", Name: "x"}); err == nil {
+		t.Error("unknown engine accepted")
+	}
+	if _, err := NormalizeDatabaseAccess(Database{Engine: "mysql"}); err == nil {
+		t.Error("missing name accepted")
+	}
+	if _, err := NormalizeDatabaseAccess(Database{Engine: "mysql", Name: "a; rm -rf /"}); err == nil {
+		t.Error("unsafe name accepted")
+	}
+}
+
+func TestBuildPlanDatabaseMisconfiguration(t *testing.T) {
+	cfg := ApplyConfig{ProjectName: "shop", Domain: "shop.com"}
+	cfg.Database.Engine = "mysql" // engine without name
+	steps := BuildPlan(cfg)
+	if len(steps) != 1 || steps[0].Title != "Validate database configuration" {
+		t.Fatalf("misconfigured plan = %+v", steps)
+	}
+}
+
+func TestBuildDestroyPlan(t *testing.T) {
+	cfg := ApplyConfig{
+		ProjectName: "shop", Domain: "shop.com", GitBranch: "main",
+		Database: Database{Engine: "mysql", Name: "shop"},
+	}
+
+	steps := BuildDestroyPlan(cfg, false)
+	titles := setOfTitles(steps)
+	for _, want := range []string{"Disable site", "Remove nginx vhost", "Remove auto-deploy cron", "Test nginx configuration", "Reload nginx", "Archive webroot"} {
+		if !titles[want] {
+			t.Errorf("destroy plan missing %q: %v", want, titles)
+		}
+	}
+	for _, s := range steps {
+		if strings.Contains(s.Command, "DROP DATABASE") {
+			t.Error("destroy without dropDatabase still drops the database")
+		}
+	}
+	// The webroot is moved aside, never rm -rf'd in place.
+	archived := false
+	for _, s := range steps {
+		if s.Title == "Archive webroot" {
+			archived = strings.Contains(s.Command, "mv /var/www/shop") && !strings.Contains(s.Command, "rm -rf /var/www/shop\n")
+		}
+	}
+	if !archived {
+		t.Error("webroot not archived aside")
+	}
+
+	steps = BuildDestroyPlan(cfg, true)
+	dropped := false
+	for _, s := range steps {
+		if strings.Contains(s.Command, "DROP DATABASE IF EXISTS shop") {
+			dropped = true
+		}
+	}
+	if !dropped {
+		t.Error("dropDatabase=true did not drop the database")
+	}
+}
+
+func setOfTitles(steps []Step) map[string]bool {
+	out := map[string]bool{}
+	for _, s := range steps {
+		out[s.Title] = true
+	}
+	return out
 }

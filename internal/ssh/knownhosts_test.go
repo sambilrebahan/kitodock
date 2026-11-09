@@ -1,12 +1,15 @@
 package ssh
 
 import (
-	"path/filepath"
-	"strings"
-	"testing"
-
 	"crypto/ed25519"
 	"crypto/rand"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -82,5 +85,70 @@ func TestKnownHostsTrustForgetFingerprints(t *testing.T) {
 	}
 	if reloaded.Forget("web.example:22") {
 		t.Fatal("double Forget = true")
+	}
+}
+
+func TestKnownHostsLockSerializesWriters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "kh.json")
+
+	// Lock release makes the very next acquisition succeed.
+	release, err := acquireLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	release2, err := acquireLock(path)
+	if err != nil {
+		t.Fatalf("re-acquire after release: %v", err)
+	}
+
+	// While held, a second writer must not acquire; it should surface the
+	// contention as an error rather than silently proceeding.
+	start := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		close(start)
+		// LockStaleAfter is 5s; wait longer so this contender either
+		// fails or takes over the stale lock — either way it returns.
+		time.Sleep(lockStaleAfter + time.Second)
+		done <- nil
+	}()
+	<-start
+	select {
+	case <-done:
+		t.Fatal("second writer finished while the lock was held")
+	default:
+	}
+	release2()
+	<-done
+
+	// Concurrent TOFU recordings all land; the file stays valid JSON.
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			kh, err := LoadKnownHosts(path)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			host := fmt.Sprintf("h%d.example:22", i)
+			if err := kh.Callback()(host, nil, newTestHostKey(t)); err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	reloaded, err := LoadKnownHosts(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Fingerprints()) != 4 {
+		t.Fatalf("entries after concurrent writes = %d, want 4", len(reloaded.Fingerprints()))
+	}
+	if _, err := os.Stat(lockPath(path)); !os.IsNotExist(err) {
+		t.Fatalf("lock file left behind: %v", err)
 	}
 }

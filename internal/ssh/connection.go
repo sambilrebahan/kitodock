@@ -3,9 +3,9 @@ package ssh
 // Connection: dial, authenticate, request PTY, open shell; SFTP layering.
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 	"time"
 
@@ -23,6 +23,13 @@ type Host struct {
 	Password string   `json:"password,omitempty"` // DPAPI-sealed
 	KeyName  string   `json:"keyName,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
+	// JumpHosts names saved hosts to dial through first, ordered like
+	// `ssh -J a,b`: the last entry is the direct parent of this host.
+	JumpHosts []string `json:"jumpHosts,omitempty"`
+	// ProxyCommand starts a local helper providing the raw connection to
+	// the first hop; %h/%p expand to that hop's address and port.
+	ProxyCommand string    `json:"proxyCommand,omitempty"`
+	LastUsed     time.Time `json:"lastUsed,omitempty"`
 }
 
 // Session is an active SSH connection with an optional PTY.
@@ -32,46 +39,19 @@ type Session struct {
 	stdin   io.WriteCloser
 	stdout  io.Reader
 	host    Host
+	// chain holds the bastion clients ridden to reach client; all of them
+	// are closed together with the session.
+	chain []*ssh.Client
 }
 
 // Connect dials and authenticates. keyData is the private key PEM (nil for
 // password auth). hostKeyCb verifies the server key — pass a KnownHosts
 // TOFU callback in production; nil falls back to insecure skip (tests only).
+// For jump chains and stage tracking use DialTarget.
 func Connect(host Host, keyData []byte, unseal func(string) (string, error), hostKeyCb ssh.HostKeyCallback) (*Session, error) {
-	if hostKeyCb == nil {
-		hostKeyCb = ssh.InsecureIgnoreHostKey()
-	}
-	config := &ssh.ClientConfig{
-		User:            host.User,
-		HostKeyCallback: hostKeyCb,
-		Timeout:         10 * time.Second,
-	}
-
-	switch host.AuthMode {
-	case "key":
-		if keyData != nil {
-			signer, err := ssh.ParsePrivateKey(keyData)
-			if err != nil {
-				return nil, fmt.Errorf("parse key: %w", err)
-			}
-			config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
-		}
-	case "password":
-		password, err := unseal(host.Password)
-		if err != nil {
-			return nil, fmt.Errorf("unseal password: %w", err)
-		}
-		config.Auth = []ssh.AuthMethod{ssh.Password(password)}
-	default:
-		return nil, fmt.Errorf("unsupported auth mode %q", host.AuthMode)
-	}
-
-	addr := net.JoinHostPort(host.Address, fmt.Sprintf("%d", host.Port))
-	client, err := ssh.Dial("tcp", addr, config)
-	if err != nil {
-		return nil, fmt.Errorf("dial %s: %w", addr, err)
-	}
-	return &Session{client: client, host: host}, nil
+	return DialTarget(DialRequest{
+		Host: host, KeyData: keyData, Unseal: unseal, HostKeyCb: hostKeyCb,
+	})
 }
 
 // RequestPty requests a pseudo-terminal and starts a shell.
@@ -150,10 +130,13 @@ func (s *Session) Run(command string, sudo bool) (string, error) {
 	return string(out), err
 }
 
-// Close ends the session and connection.
+// Close ends the session and connection, including every bastion hop.
 func (s *Session) Close() {
 	if s.session != nil {
 		s.session.Close()
+	}
+	for _, hop := range s.chain {
+		hop.Close()
 	}
 	if s.client != nil {
 		s.client.Close()
@@ -274,5 +257,100 @@ func (s *SFTPSession) WriteFile(path string, data []byte) error {
 	}
 	defer remote.Close()
 	_, err = remote.Write(data)
+	return err
+}
+
+// --- Progress-aware transfers ---------------------------------------------
+
+// ErrTransferCancelled is returned when a progress-aware transfer was
+// cancelled through its cancel callback.
+var ErrTransferCancelled = errors.New("transfer cancelled")
+
+// Progress reports bytes moved out of total; total is 0 when unknown.
+type Progress func(sent, total int64)
+
+// Cancelled returns true to abort the transfer at the next write.
+type Cancelled func() bool
+
+// countingWriter forwards writes while reporting progress and honoring
+// cancellation between writes.
+type countingWriter struct {
+	w         io.Writer
+	sent      int64
+	total     int64
+	progress  Progress
+	cancelled Cancelled
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	if c.cancelled != nil && c.cancelled() {
+		return 0, ErrTransferCancelled
+	}
+	n, err := c.w.Write(p)
+	c.sent += int64(n)
+	if c.progress != nil {
+		c.progress(c.sent, c.total)
+	}
+	return n, err
+}
+
+// countingReader is the read-side twin of countingWriter.
+type countingReader struct {
+	r         io.Reader
+	sent      int64
+	total     int64
+	progress  Progress
+	cancelled Cancelled
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	if c.cancelled != nil && c.cancelled() {
+		return 0, ErrTransferCancelled
+	}
+	n, err := c.r.Read(p)
+	c.sent += int64(n)
+	if c.progress != nil {
+		c.progress(c.sent, c.total)
+	}
+	return n, err
+}
+
+// Stat returns a remote file's size (0 when unknown).
+func (s *SFTPSession) Stat(remotePath string) (int64, error) {
+	info, err := s.client.Stat(remotePath)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
+// UploadStream copies reader to remotePath, reporting progress (total may
+// be supplied by the caller, e.g. the local file size) and aborting with
+// ErrTransferCancelled once cancelled returns true.
+func (s *SFTPSession) UploadStream(reader io.Reader, remotePath string, total int64, progress Progress, cancelled Cancelled) error {
+	remote, err := s.client.Create(remotePath)
+	if err != nil {
+		return fmt.Errorf("create remote %s: %w", remotePath, err)
+	}
+	defer remote.Close()
+	counter := &countingReader{r: reader, total: total, progress: progress, cancelled: cancelled}
+	_, err = io.Copy(remote, counter)
+	return err
+}
+
+// DownloadStream copies remotePath to writer with progress and
+// cancellation, sizing the total from the remote file.
+func (s *SFTPSession) DownloadStream(remotePath string, writer io.Writer, progress Progress, cancelled Cancelled) error {
+	remote, err := s.client.Open(remotePath)
+	if err != nil {
+		return fmt.Errorf("open remote %s: %w", remotePath, err)
+	}
+	defer remote.Close()
+	total := int64(0)
+	if info, err := remote.Stat(); err == nil {
+		total = info.Size()
+	}
+	counter := &countingWriter{w: writer, total: total, progress: progress, cancelled: cancelled}
+	_, err = io.Copy(counter, remote)
 	return err
 }
