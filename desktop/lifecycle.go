@@ -117,9 +117,33 @@ func (a *App) shutdown(ctx context.Context) {
 
 // beforeClose hides the window instead of closing it: a services app lives
 // in the tray. Closing for real goes through QuitApp or the tray's quit,
-// both of which set the quitting flag first.
+// both of which set the quitting flag first. When quitting with unsaved
+// editor buffers, the document gate asks the user before proceeding.
 func (a *App) beforeClose(ctx context.Context) bool {
 	if quitting.Load() {
+		return false
+	}
+	// Document shutdown gate: if unsaved buffers exist, ask the frontend
+	// to confirm; the user's answer arrives through the resolve channel.
+	if a.Terminal.DocumentDirtyCount() > 0 {
+		a.bus.Emit(controllers.EvDocumentsShutdownRequest, a.Terminal.DocumentDirtyCount())
+		select {
+		case allow := <-a.bus.ShutdownResolveCh():
+			if !allow {
+				return true // prevent close
+			}
+			// User chose to discard: proceed to quit path below.
+		case <-time.After(30 * time.Second):
+			// Timeout: prevent close (safe default).
+			return true
+		}
+		quitting.Store(true)
+		a.Dev.StopAllDev()
+		a.CronQueue.StopCron()
+		a.CronQueue.StopAllQueueWorkers()
+		a.Terminal.CloseAll()
+		a.stack.StopAll()
+		StopTray()
 		return false
 	}
 	if a.ctx != nil {

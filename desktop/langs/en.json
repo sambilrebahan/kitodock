@@ -322,11 +322,18 @@
       "unstageAll": "Unstage all",
       "commitMessage": "Commit message…",
       "commit": "Commit",
-      "push": "Push"
+      "push": "Push",
+      "dirtyStageTitle": "Unsaved changes",
+      "dirtyStageBody": "\"{{file}}\" has unsaved editor changes. Save before staging?",
+      "saveAndStage": "Save and stage",
+      "stageFromDisk": "Stage from disk"
     },
     "readOnly": "read-only",
     "save": "Save (Ctrl+S)",
     "selectFile": "Select a file to edit",
-    "saveMerged": "Save anyway"
+    "saveMerged": "Save anyway",
+    "shutdownTitle": "Unsaved documents",
+    "shutdownBody": "You have {{count}} unsaved document(s). Quit anyway?",
+    "shutdownDiscard": "Discard and quit"
   }
 }

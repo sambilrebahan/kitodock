@@ -48,10 +48,11 @@
 7. **Image preview**: ReadImage API → base64 `<img>` untuk `.png`/`.jpg`/`.jpeg`/`.gif`/`.webp` dengan MIME magic detection dari backend.
 8. **Git diff view**: klik file di panel Git → DiffEditor Monaco (HEAD vs working tree, via `ShowSourceControlFile` + `ReadSourceControlDiff`).
 9. **Save-merged**: tombol "Save anyway" muncul saat konflik — memanggil `SaveDocument` dengan revision kosong (force save).
-10. **Document shutdown gate**: `beforeunload` di main.tsx + `window.__kitodock_dirtyDocs` yang dilaporkan WorkspaceNavigator; browser/WebView menampilkan dialog konfirmasi saat ada buffer kotor.
-11. **Dirty-buffer tracking**: FilesTab melaporkan dirtyCount ke WorkspaceNavigator → window global → beforeunload.
+10. **Document shutdown gate (app-level)**: `beforeClose` di lifecycle.go memeriksa `DocumentDirtyCount()` → emit `documents:shutdown-request` → frontend (App.tsx) menampilkan dialog "Discard and quit" / "Cancel" → `ResolveDocumentShutdown(allow)` melalui channel; timeout 30 dtk default prevent-close (aman). Juga ada fallback `beforeunload` di main.tsx.
+11. **Dirty-buffer tracking**: FilesTab melaporkan dirtyCount + dirtyPath ke WorkspaceNavigator → backend (`SetDocumentDirtyCount`) + window global → beforeunload + app gate.
+12. **Dirty-buffer stage dialog**: GitTab menerima `dirtyPath`; saat staging file yang buffer-nya kotor, dialog "Save and stage" / "Stage from disk" muncul.
+13. **TOCTOU repo detection**: `mutate()` wrapper — fingerprint HEAD sebelum + sesudah stage/unstage/push (commit dikecualikan karena sah mengubah HEAD); `ErrRepositoryChanged` jika berubah.
+14. **Markdown polish**: heading anchor (id dari slug), link eksternal diblokir (span non-clickable), gambar lokal dimuat via `ReadImage` API → base64 data URI.
 
 ## 6. Utang yang tersisa (non-blocker)
-- Dirty-buffer stage dialog (staging dari Git menawarkan save dulu — saat ini stage memakai isi disk, bukan buffer).
-- Repository-changed detection (TOCTOU re-verify sebelum mutasi).
-- Document close dialog dalam app (saat ini beforeunload cukup untuk mencegah kehilangan; dialog kitodock sendiri menyusul).
+- Commit hooks/signing scenario belum teruji spesifik (infrastructure ada, via git CLI langsung).

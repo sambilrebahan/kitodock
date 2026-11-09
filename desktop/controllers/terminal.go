@@ -254,3 +254,20 @@ func (t *Terminal) SaveTerminalWorkspace(raw string) error {
 	}
 	return t.workspaceStore.SetTerminalWorkspace([]byte(raw))
 }
+
+// SetDocumentDirtyCount records how many editor buffers are unsaved.
+// The lifecycle's beforeClose checks this before allowing the app to quit.
+func (t *Terminal) SetDocumentDirtyCount(count int) {
+	t.bus.documentDirty.Store(int32(count))
+}
+
+// ResolveDocumentShutdown answers the shutdown gate: the frontend calls
+// this after the user decides what to do with dirty documents.
+func (t *Terminal) ResolveDocumentShutdown(allow bool) {
+	t.bus.shutdownResolve <- allow
+}
+
+// DocumentDirtyCount reports the current unsaved-buffer count.
+func (t *Terminal) DocumentDirtyCount() int {
+	return int(t.bus.documentDirty.Load())
+}

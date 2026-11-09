@@ -7,9 +7,11 @@ package sourcecontrol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -51,6 +53,55 @@ type Service struct {
 	opOrder  []string
 	activeMu sync.Mutex // serializes git mutations
 	onUpdate func()
+}
+
+// ErrRepositoryChanged is returned when the .git directory changed between
+// the start and end of a mutation — the repository was swapped, rebased, or
+// reset by something else mid-operation.
+var ErrRepositoryChanged = errors.New("repository changed during operation")
+
+// repoFingerprint computes a stable identity of the repository: the
+// resolved HEAD commit hash. A swapped repo changes HEAD entirely; a
+// rebased/reset repo changes HEAD to a different commit. Index changes
+// (stage/unstage) do NOT change HEAD, so those operations pass cleanly.
+func (s *Service) repoFingerprint() string {
+	head, err := os.ReadFile(filepath.Join(s.root, ".git", "HEAD"))
+	if err != nil {
+		return "no-head"
+	}
+	content := strings.TrimSpace(string(head))
+	if strings.HasPrefix(content, "ref: ") {
+		refPath := filepath.Join(s.root, ".git", strings.TrimPrefix(content, "ref: "))
+		commit, err := os.ReadFile(refPath)
+		if err != nil {
+			return content
+		}
+		return strings.TrimSpace(string(commit))
+	}
+	return content
+}
+
+// mutate wraps a git mutation with TOCTOU detection for operations that
+// should not change HEAD (stage, unstage, push). Commit legitimately
+// changes HEAD, so it skips the fingerprint check.
+func (s *Service) mutate(ctx context.Context, kind string, fn func(ctx context.Context) (string, error)) error {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+
+	checkFingerprint := kind != "commit"
+	var before string
+	if checkFingerprint {
+		before = s.repoFingerprint()
+	}
+	op := s.startOp(kind)
+	out, err := fn(ctx)
+	if checkFingerprint && err == nil {
+		if after := s.repoFingerprint(); before != after {
+			err = ErrRepositoryChanged
+		}
+	}
+	s.finishOp(op, err, out)
+	return err
 }
 
 func New(root string) *Service {
@@ -202,48 +253,36 @@ func (s *Service) finishOp(op *Operation, err error, output string) {
 // Stage adds files to the index (literal pathspecs via stdin to avoid
 // shell interpretation).
 func (s *Service) Stage(ctx context.Context, paths []string) error {
-	s.activeMu.Lock()
-	defer s.activeMu.Unlock()
-	op := s.startOp("stage")
-	out, err := s.gitPathspec(ctx, "add", []string{"--"}, paths)
-	s.finishOp(op, err, out)
-	return err
+	return s.mutate(ctx, "stage", func(ctx context.Context) (string, error) {
+		return s.gitPathspec(ctx, "add", []string{"--"}, paths)
+	})
 }
 
 // Unstage removes files from the index (restore --staged).
 func (s *Service) Unstage(ctx context.Context, paths []string) error {
-	s.activeMu.Lock()
-	defer s.activeMu.Unlock()
-	op := s.startOp("unstage")
-	// restore --staged is the modern way; reset HEAD for older git.
-	args := append([]string{"restore", "--staged", "--"}, paths...)
-	out, err := s.git(ctx, args...)
-	if err != nil {
-		args = append([]string{"reset", "HEAD", "--"}, paths...)
-		out, err = s.git(ctx, args...)
-	}
-	s.finishOp(op, err, out)
-	return err
+	return s.mutate(ctx, "unstage", func(ctx context.Context) (string, error) {
+		args := append([]string{"restore", "--staged", "--"}, paths...)
+		out, err := s.git(ctx, args...)
+		if err != nil {
+			args = append([]string{"reset", "HEAD", "--"}, paths...)
+			out, err = s.git(ctx, args...)
+		}
+		return out, err
+	})
 }
 
 // Commit commits the entire index.
 func (s *Service) Commit(ctx context.Context, message string) error {
-	s.activeMu.Lock()
-	defer s.activeMu.Unlock()
-	op := s.startOp("commit")
-	out, err := s.git(ctx, "commit", "-m", message)
-	s.finishOp(op, err, out)
-	return err
+	return s.mutate(ctx, "commit", func(ctx context.Context) (string, error) {
+		return s.git(ctx, "commit", "-m", message)
+	})
 }
 
 // Push pushes the current branch to its upstream.
 func (s *Service) Push(ctx context.Context) error {
-	s.activeMu.Lock()
-	defer s.activeMu.Unlock()
-	op := s.startOp("push")
-	out, err := s.git(ctx, "push")
-	s.finishOp(op, err, out)
-	return err
+	return s.mutate(ctx, "push", func(ctx context.Context) (string, error) {
+		return s.git(ctx, "push")
+	})
 }
 
 // gitPathspec runs a git command with paths passed via --pathspec-from-file

@@ -322,11 +322,18 @@
       "unstageAll": "Unstage semua",
       "commitMessage": "Pesan commit…",
       "commit": "Commit",
-      "push": "Push"
+      "push": "Push",
+      "dirtyStageTitle": "Perubahan belum disimpan",
+      "dirtyStageBody": "\"{{file}}\" memiliki perubahan editor yang belum disimpan. Simpan sebelum staging?",
+      "saveAndStage": "Simpan dan stage",
+      "stageFromDisk": "Stage dari disk"
     },
     "readOnly": "baca-saja",
     "save": "Simpan (Ctrl+S)",
     "selectFile": "Pilih berkas untuk disunting",
-    "saveMerged": "Simpan paksa"
+    "saveMerged": "Simpan paksa",
+    "shutdownTitle": "Dokumen belum disimpan",
+    "shutdownBody": "Ada {{count}} dokumen yang belum disimpan. Tetap keluar?",
+    "shutdownDiscard": "Buang dan keluar"
   }
 }

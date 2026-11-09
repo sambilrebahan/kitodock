@@ -10,6 +10,7 @@ package controllers
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -58,6 +59,9 @@ const (
 	EvQueueLog = "queueworker:log"
 	// EvSourceControl announces a source control operation state change.
 	EvSourceControl = "sourcecontrol:operation"
+	// EvDocumentsShutdownRequest asks the frontend to confirm quitting with
+	// unsaved editor buffers.
+	EvDocumentsShutdownRequest = "documents:shutdown-request"
 )
 
 // EventBus wraps Wails event emission so controllers never touch the runtime
@@ -66,11 +70,16 @@ const (
 type EventBus struct {
 	mu  sync.RWMutex
 	ctx context.Context
+	// documentDirty is the unsaved-editor-buffer count for the shutdown gate.
+	documentDirty atomic.Int32
+	// shutdownResolve receives the user's decision (allow=true) from the
+	// frontend after the documents:shutdown-request dialog.
+	shutdownResolve chan bool
 }
 
 // NewEventBus returns a bus with no context; the app lifecycle installs the
 // real one at startup, before any controller can emit.
-func NewEventBus() *EventBus { return &EventBus{} }
+func NewEventBus() *EventBus { return &EventBus{shutdownResolve: make(chan bool, 1)} }
 
 // SetContext installs (or replaces, on shutdown) the Wails context every
 // emission goes through.
@@ -91,3 +100,7 @@ func (b *EventBus) Emit(name string, data ...any) {
 	}
 	wruntime.EventsEmit(ctx, name, data...)
 }
+
+// ShutdownResolveCh exposes the resolve channel for the lifecycle's
+// beforeClose document gate.
+func (b *EventBus) ShutdownResolveCh() <-chan bool { return b.shutdownResolve }
