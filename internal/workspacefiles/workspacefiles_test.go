@@ -3,7 +3,9 @@ package workspacefiles
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -253,5 +255,44 @@ func TestSymlinkBlocked(t *testing.T) {
 		if e.Blocked && e.BlockReason == "" {
 			t.Error("blocked entry without reason")
 		}
+	}
+}
+
+func TestResolveRejectsSymlinkEscape(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("junction test is Windows-shaped")
+	}
+	root := t.TempDir()
+	outside := t.TempDir()
+	// Plant a target file outside the project root.
+	secret := filepath.Join(outside, "secret.txt")
+	if err := os.WriteFile(secret, []byte("top secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	newSvc := func(dir string) *Service {
+		return New(dir)
+	}
+
+	// A directory junction pointing outside (no admin needed, unlike symlinks).
+	link := filepath.Join(root, "leak")
+	cmd := exec.Command("cmd", "/c", "mklink", "/J", link, outside)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("junction creation failed: %v: %s", err, out)
+	}
+
+	s := newSvc(root)
+	if _, status := s.Read(ref(), "leak/secret.txt"); status != ResultBlocked {
+		t.Fatalf("read through junction = %q, want blocked", status)
+	}
+	// Saving through a junction must be blocked too.
+	if status, _ := s.Save(ref(), "leak/secret.txt", "pwned", ""); status != ResultBlocked {
+		t.Fatalf("save through junction = %q, want blocked", status)
+	}
+	// A plain file still reads fine.
+	if err := os.WriteFile(filepath.Join(root, "ok.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, status := s.Read(ref(), "ok.txt"); status == ResultBlocked {
+		t.Fatal("plain file blocked")
 	}
 }

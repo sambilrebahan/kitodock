@@ -251,8 +251,20 @@ func callTool(params json.RawMessage, owner *OwnerClient) (any, *rpcError) {
 	if len(call.Arguments) > 0 {
 		_ = json.Unmarshal(call.Arguments, &args)
 	}
-	confirm, _ := args["confirm"].(bool)
+	// Strict allowlist: only advertised tool names pass. Names are matched
+	// whole — "exec" or "kitodock_exec-x" never reach the owner endpoint.
+	known := false
+	for _, tool := range Tools() {
+		if tool.Name == call.Name {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return nil, &rpcError{codeInvalidPr, fmt.Sprintf("unknown tool %q", call.Name)}
+	}
 
+	confirm, _ := args["confirm"].(bool)
 	switch call.Name {
 	case "kitodock_exec", "kitodock_context":
 		if !confirm {
@@ -260,6 +272,9 @@ func callTool(params json.RawMessage, owner *OwnerClient) (any, *rpcError) {
 				"%s is confirm-gated: repeat the call with \"confirm\": true to run it.",
 				call.Name)), nil
 		}
+		// Server-side gate marker: the endpoint re-checks it, so skipping
+		// this bridge cannot skip the confirmation.
+		args["_confirmed"] = true
 	}
 	// The confirm flag is transport detail, not payload.
 	delete(args, "confirm")

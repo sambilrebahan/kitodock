@@ -125,9 +125,13 @@ type VhostFile struct {
 }
 
 // GetProjectVhost returns the project's nginx config for hand editing.
+// The name must belong to a known project: the file path is built from it.
 func (p *Projects) GetProjectVhost(name string) (VhostFile, error) {
 	if p.create == nil {
 		return VhostFile{}, fmt.Errorf("serving unavailable")
+	}
+	if !p.knownProject(name) {
+		return VhostFile{}, fmt.Errorf("unknown project %q", name)
 	}
 	path := filepath.Join(p.create.NginxSitesDir(), name+".conf")
 	data, err := os.ReadFile(path)
@@ -142,6 +146,9 @@ func (p *Projects) GetProjectVhost(name string) (VhostFile, error) {
 func (p *Projects) SaveProjectVhost(name, content string) error {
 	if p.create == nil {
 		return fmt.Errorf("serving unavailable")
+	}
+	if !p.knownProject(name) {
+		return fmt.Errorf("unknown project %q", name)
 	}
 	path := filepath.Join(p.create.NginxSitesDir(), name+".conf")
 	if err := atomicfile.Write(path, []byte(content), 0o644); err != nil {
@@ -264,6 +271,18 @@ func (p *Projects) PeclExtensions() []kphp.PeclExtension {
 // InstallPeclExtension downloads and enables one PECL extension for a
 // series, streaming progress as php:pecl events.
 func (p *Projects) InstallPeclExtension(series, name string) (kphp.PeclResult, error) {
+	// Only catalog names may reach the downloader: the name builds both
+	// the URL and the destination DLL path.
+	known := false
+	for _, entry := range kphp.PeclCatalog() {
+		if entry.Name == name {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return kphp.PeclResult{}, fmt.Errorf("unknown PECL extension %q", name)
+	}
 	inst := kphp.NewPeclInstaller(p.php)
 	result, err := inst.Install(context.Background(), series, name, func(step string) {
 		p.bus.Emit(EvPhpPecl, map[string]any{"series": series, "extension": name, "step": step})
@@ -272,6 +291,19 @@ func (p *Projects) InstallPeclExtension(series, name string) (kphp.PeclResult, e
 		return kphp.PeclResult{}, err
 	}
 	return *result, nil
+}
+
+// knownProject reports whether name is a scanned project.
+func (p *Projects) knownProject(name string) bool {
+	if name == "" || name != filepath.Base(name) {
+		return false
+	}
+	for _, project := range p.serving.ListProjects() {
+		if project.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ListProjectRoutes exposes the mirrored route table (canonical anchors

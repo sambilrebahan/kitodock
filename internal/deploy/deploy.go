@@ -152,6 +152,9 @@ func BuildPlan(cfg ApplyConfig) []Step {
 		// than refusing to build: the user sees exactly what to fix.
 		return []Step{{Title: "Validate database configuration", Command: "false", Sudo: false, Ignore: false}}
 	}
+	if err := ValidateApplyConfig(cfg); err != nil {
+		return []Step{{Title: "Validate configuration", Command: "false", Sudo: false, Ignore: false}}
+	}
 	cfg.Database = db
 
 	domain := cfg.EffectiveDomain()
@@ -286,6 +289,9 @@ VHOST`, cfg.ProjectName, vhost), true, false)
 // the directory aside instead of rm -rf so a mistaken destroy is still
 // recoverable by an operator; the backup is pruned after a week.
 func BuildDestroyPlan(cfg ApplyConfig, dropDatabase bool) []Step {
+	if err := ValidateApplyConfig(cfg); err != nil {
+		return []Step{{Title: "Validate configuration", Command: "false", Sudo: false, Ignore: false}}
+	}
 	var steps []Step
 	add := func(title, cmd string, sudo, ignore bool) {
 		steps = append(steps, Step{Title: title, Command: cmd, Sudo: sudo, Ignore: ignore})

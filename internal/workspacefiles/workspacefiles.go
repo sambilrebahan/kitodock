@@ -125,7 +125,10 @@ func validPath(rel string) bool {
 	return true
 }
 
-// resolve turns a relative path into an absolute one, refusing escapes.
+// resolve turns a relative path into an absolute one, refusing escapes —
+// lexical ones ("..") and filesystem ones alike: any symlink or junction
+// along the way would let a cloned repo point outside the project, so the
+// walk Lstat's every component and rejects reparse points.
 func (s *Service) resolve(rel string) (string, error) {
 	if !validPath(rel) {
 		return "", fmt.Errorf("invalid path %q", rel)
@@ -139,7 +142,38 @@ func (s *Service) resolve(rel string) (string, error) {
 		!strings.EqualFold(full, s.root) {
 		return "", fmt.Errorf("path escapes root")
 	}
+	if err := rejectSymlinks(s.root, filepath.FromSlash(rel)); err != nil {
+		return "", err
+	}
 	return full, nil
+}
+
+// rejectSymlinks walks each component under root and refuses paths that
+// traverse a symlink or junction. The final component is checked too:
+// reading through a link is as dangerous as writing through one.
+func rejectSymlinks(root, rel string) error {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	current := root
+	for i, part := range parts {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			if i == len(parts)-1 {
+				return nil // creating a new file is fine
+			}
+			return nil // deeper missing parents surface on the real op
+		}
+		if err != nil {
+			return fmt.Errorf("stat %s: %w", part, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || info.Mode()&os.ModeIrregular != 0 {
+			return fmt.Errorf("%s traverses a symbolic link", rel)
+		}
+	}
+	return nil
 }
 
 // List returns one page of a directory listing, sorted deterministically

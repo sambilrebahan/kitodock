@@ -103,6 +103,9 @@ func (c *Deployments) GetDeployment(id string) (DeploymentView, error) {
 // The database block is normalized first so a generated password is part
 // of the stored spec (BuildPlan is idempotent against it afterwards).
 func (c *Deployments) SaveDeployment(view DeploymentView) error {
+	if err := deploy.ValidateApplyConfig(view.Config); err != nil {
+		return err
+	}
 	db, err := deploy.NormalizeDatabaseAccess(view.Config.Database)
 	if err != nil {
 		return err

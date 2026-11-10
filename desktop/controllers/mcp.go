@@ -84,14 +84,19 @@ func NewMCP(bus *EventBus, deps MCPDeps, setEnabled func(bool) error) *MCP {
 func (c *MCP) SetTermDeps(term TermDeps) { c.term = term }
 
 // EnsureEndpoint starts the loopback endpoint if it is not already
-// running and returns its base URL and token. Detached windows need it
-// even when the MCP registrations themselves are off.
-func (c *MCP) EnsureEndpoint() (string, string, error) {
+// running and returns its base URL plus the bearer tokens, one per
+// source: helpers hold the token of the personality they run as, and the
+// server authorizes each token against that source's method allowlist.
+func (c *MCP) EnsureEndpoint() (base, mcpToken, termToken string, err error) {
 	if c.owner == nil {
 		auditPath := filepath.Join(paths.AgentsDir(), "mcp-audit.jsonl")
 		c.owner = ownerhttp.NewServer(c.dispatch, auditPath)
 	}
-	return c.owner.Start()
+	base, mcpToken, err = c.owner.Start()
+	if err != nil {
+		return "", "", "", err
+	}
+	return base, mcpToken, c.owner.Token("terminal-window"), nil
 }
 
 // MCPStatus is the settings-facing state.
@@ -166,7 +171,10 @@ func (c *MCP) EnableMCP() error {
 		}
 	}
 	if len(problems) > 0 {
-		return fmt.Errorf("registration incomplete: %s", strings.Join(problems, "; "))
+		// The endpoint must not outlive a half-done enable: stop it so the
+		// status the UI shows ("off") matches reality.
+		c.owner.Stop()
+		return fmt.Errorf("registration incomplete (endpoint stopped): %s", strings.Join(problems, "; "))
 	}
 	if c.setEnabled != nil {
 		_ = c.setEnabled(true)
@@ -246,6 +254,12 @@ func (c *MCP) dispatch(method string, payload json.RawMessage) (any, error) {
 		if project == "" || command == "" {
 			return nil, fmt.Errorf("project and command are required")
 		}
+		// The bridge enforces the confirm gate; the server refuses to run
+		// without the marker so a hand-crafted request cannot skip it.
+		if args["_confirmed"] != true {
+			return nil, fmt.Errorf("exec is confirm-gated")
+		}
+		delete(args, "_confirmed")
 		return c.deps.ExecProject(project, command)
 	case "db_list":
 		return c.deps.Databases()
@@ -254,6 +268,10 @@ func (c *MCP) dispatch(method string, payload json.RawMessage) (any, error) {
 		if project == "" {
 			return nil, fmt.Errorf("project is required")
 		}
+		if args["_confirmed"] != true {
+			return nil, fmt.Errorf("context capture is confirm-gated")
+		}
+		delete(args, "_confirmed")
 		return c.deps.CaptureContext(project)
 	case "mail_list":
 		return c.deps.Mailbox(25)

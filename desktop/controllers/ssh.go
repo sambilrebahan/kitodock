@@ -136,7 +136,7 @@ func (c *SSH) DeleteHost(name string) error {
 // GenerateSSHKey creates a key of the given type ("ed25519" | "rsa" |
 // "ecdsa"), saves it under the SSH dir and returns the public key line.
 func (c *SSH) GenerateSSHKey(name, keyType string, rsaBits int) (string, error) {
-	if strings.TrimSpace(name) == "" {
+	if !safeName(name) {
 		return "", fmt.Errorf("key name is required")
 	}
 	privatePEM, publicKey, err := ssh.GenerateKey(ssh.KeyType(keyType), rsaBits)
@@ -162,14 +162,26 @@ func (c *SSH) InspectSSHKeys() ([]ssh.KeyInfo, error) {
 	return ssh.InspectKeys(c.keysDir())
 }
 
+// safeName rejects path tricks before a caller-supplied name reaches
+// filepath.Join: one plain file name, no separators, no parent hops.
+func safeName(name string) bool {
+	return name != "" && name == filepath.Base(name) && name != "." && name != ".." && !strings.ContainsAny(name, `\/:*?"<>|`)
+}
+
 // ReadSSHPublicKey returns the public key line for a saved key.
 func (c *SSH) ReadSSHPublicKey(name string) (string, error) {
+	if !safeName(name) {
+		return "", fmt.Errorf("invalid key name")
+	}
 	return ssh.ReadPublicKey(filepath.Join(c.keysDir(), name))
 }
 
 // ImportSSHKey validates an externally supplied private key PEM, saves it
 // under the given name and returns its public key line.
 func (c *SSH) ImportSSHKey(name, pemData string) (string, error) {
+	if !safeName(name) {
+		return "", fmt.Errorf("invalid key name")
+	}
 	return ssh.ImportKey(c.keysDir(), name, []byte(pemData))
 }
 

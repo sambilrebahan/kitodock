@@ -127,14 +127,14 @@ func NewApp(trayIcon []byte) *App {
 	// independent of the MCP preference.
 	mcpCtrl.SetTermDeps(termCtrl)
 	termCtrl.SetDetacher(func(ptyID string) (*controllers.DetachedWindow, error) {
-		base, token, err := mcpCtrl.EnsureEndpoint()
+		base, _, termToken, err := mcpCtrl.EnsureEndpoint()
 		if err != nil {
 			return nil, err
 		}
-		if err := spawnDetachedWindow(ptyID, base, token); err != nil {
+		if err := spawnDetachedWindow(ptyID, base, termToken); err != nil {
 			return nil, err
 		}
-		return &controllers.DetachedWindow{PtyID: ptyID, URL: base, Token: token}, nil
+		return &controllers.DetachedWindow{PtyID: ptyID, URL: base, Token: termToken}, nil
 	})
 	updatesCtrl := controllers.NewUpdates(bus, "sambilrebahan/kitodock")
 	commandCenter := controllers.NewCommandCenter(bus,

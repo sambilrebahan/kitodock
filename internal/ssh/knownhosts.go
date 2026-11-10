@@ -73,7 +73,16 @@ func (k *KnownHosts) Callback() ssh.HostKeyCallback {
 func changedKeyError(addr, recorded, presented string) error {
 	return fmt.Errorf(
 		"host key for %s changed: recorded %s… now %s… — possible man-in-the-middle; remove the entry manually if the server was legitimately rebuilt",
-		addr, recorded[:12], presented[:12])
+		addr, clip12(recorded), clip12(presented))
+}
+
+// clip12 truncates safely: empty or short digests must not panic the
+// error path that exists to report them.
+func clip12(s string) string {
+	if len(s) > 12 {
+		return s[:12]
+	}
+	return s
 }
 
 // currentEntry re-reads one entry from disk while holding the lock.

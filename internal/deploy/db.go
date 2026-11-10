@@ -64,6 +64,8 @@ func NormalizeDatabaseAccess(db Database) (Database, error) {
 	// letters and digits, so no quoting edge cases in generated SQL/bash.
 	if db.Password == "" {
 		db.Password = generateDatabasePassword()
+	} else if err := ValidateDatabasePassword(db.Password); err != nil {
+		return db, err
 	}
 	return db, nil
 }
