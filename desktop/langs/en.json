@@ -298,6 +298,18 @@
       "empty": "No extensions match.",
       "pecl": "Install from PECL (prebuilt DLL)",
       "installing": "installing..."
+    },
+    "dev": {
+      "button": "Dev server (npm run dev)"
+    },
+    "doctor": {
+      "button": "Site Doctor",
+      "title": "Site Doctor",
+      "running": "Running checks…",
+      "rerun": "Re-check",
+      "clean": "All checks passed.",
+      "fix": "Fix",
+      "fixing": "fixing…"
     }
   },
   "ca": {

@@ -86,6 +86,19 @@ kode lewat pemeriksaan langsung (grep binding/controller/UI/pemanggil), bukan da
 | Binary GUI + CLI (+ cross-compile linux CLI) | ✅ |
 | **Audit originalitas (semua file ronde ini)** | **0 komentar prosa identik**; sisa kecocokan baris hanya idiom/struct-tag/import |
 
+### Ronde keempat: audit "menu tampil dan bisa dipakai" lintas-lapisan
+
+Pemeriksaan otomatis: setiap stub binding ↔ metode Go ↔ controller ter-bind di main.go,
+lalu setiap import frontend ↔ stub, dan setiap langganan event frontend ↔ emitter backend.
+
+| Temuan | Penutupan |
+| --- | --- |
+| **Controller Notifications tidak ter-bind di main.go** — bell tampil tapi semua panggilannya mati diam-diam di runtime | ✅ `app.Notifications` masuk Bind list |
+| **Controller Dev & Doctor tanpa satu pun pemakai frontend** — Site Doctor dan dev server (AC F2 #4/#5) hanya hidup di backend | ✅ Tombol **Site Doctor** per kartu proyek → modal diagnosa (temuan + severity + tombol Fix per FixID + re-check setelah fix); tombol **dev server** per kartu (start/stop, hijau saat berjalan, status di-refresh dari `DevRunning`) |
+| Event `app:notice` tanpa pelanggan (notis backend tak terlihat siapa pun) | ✅ NotificationBell melanggankan dan memasukkannya ke inbox via `PushNotification` |
+
+Setelah perbaikan: binding audit **0 masalah**; 9 id halaman Sidebar = App = katalog palette.
+
 ## 4. Catatan
 
 1. Pane agent di workspace: `pane.kind = "agent"` — dirender Terminal biasa (aliran

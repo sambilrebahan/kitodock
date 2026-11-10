@@ -105,6 +105,7 @@ func main() {
 			app.SSH,
 			app.Deployments,
 			app.Agents,
+			app.Notifications,
 			app.MCP,
 			app.Updates,
 			app.CommandCenter,

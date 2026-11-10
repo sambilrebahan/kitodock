@@ -55,6 +55,11 @@ func (c *Notifications) Push(kind, title, body string) {
 	c.bus.Emit(EvNotificationsNew, item)
 }
 
+// PushNotification is the exported bridge for frontend-sourced notices.
+func (c *Notifications) PushNotification(kind, title, body string) {
+	c.Push(kind, title, body)
+}
+
 // ListNotifications returns the inbox, newest first.
 func (c *Notifications) ListNotifications() []notifications.Item {
 	return c.store.Items()

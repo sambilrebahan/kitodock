@@ -298,6 +298,18 @@
       "empty": "Tidak ada ekstensi yang cocok.",
       "pecl": "Pasang dari PECL (DLL pra-bangun)",
       "installing": "memasang..."
+    },
+    "dev": {
+      "button": "Dev server (npm run dev)"
+    },
+    "doctor": {
+      "button": "Site Doctor",
+      "title": "Site Doctor",
+      "running": "Menjalankan pemeriksaan…",
+      "rerun": "Periksa ulang",
+      "clean": "Semua pemeriksaan lulus.",
+      "fix": "Perbaiki",
+      "fixing": "memperbaiki…"
     }
   },
   "ca": {
