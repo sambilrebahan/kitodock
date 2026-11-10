@@ -5,6 +5,7 @@ package main
 // join in later phases — see docs/02-arsitektur-kitodock.md §8).
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kitodock/desktop/controllers"
 	"kitodock/internal/agents"
 	"kitodock/internal/cron"
 	"kitodock/internal/mcpbridge"
@@ -52,6 +54,9 @@ func main() {
 			return
 		case "--cron-run":
 			runCronOnce(os.Args[2:])
+			return
+		case "--terminal-window":
+			runTerminalWindow(os.Args[2:])
 			return
 		}
 	}
@@ -103,6 +108,7 @@ func main() {
 			app.MCP,
 			app.Updates,
 			app.CommandCenter,
+			app.WindowInfo,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:              false,
@@ -198,5 +204,45 @@ func runCronOnce(args []string) {
 		// Task Scheduler has no console; failures land in the app log dir.
 		fmt.Fprintln(os.Stderr, "kitodock:", err)
 		os.Exit(1)
+	}
+}
+
+// runTerminalWindow is the satellite personality: a borderless window
+// hosting exactly one terminal pane whose PTY lives in the main process.
+// Credentials arrive through the environment set by the spawner.
+func runTerminalWindow(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: kitodock --terminal-window <pty-id>")
+		os.Exit(1)
+	}
+	ptyID := args[0]
+	base := os.Getenv("KITODOCK_OWNER_URL")
+	token := os.Getenv("KITODOCK_OWNER_TOKEN")
+	if base == "" || token == "" {
+		fmt.Fprintln(os.Stderr, "kitodock: KITODOCK_OWNER_URL/TOKEN not set")
+		os.Exit(1)
+	}
+
+	err := wails.Run(&options.App{
+		Title:       "Kitodock Terminal",
+		Width:       760,
+		Height:      480,
+		MinWidth:    380,
+		MinHeight:   220,
+		AssetServer: &assetserver.Options{Assets: assets},
+		OnStartup:   func(ctx context.Context) { _ = ctx },
+		Bind: []interface{}{
+			controllers.NewWindowInfoDetached(ptyID, base, token),
+		},
+		Windows: &windows.Options{
+			WebviewIsTransparent:              false,
+			WindowIsTranslucent:               false,
+			DisableWindowIcon:                 false,
+			DisableFramelessWindowDecorations: false,
+		},
+		Frameless: true,
+	})
+	if err != nil {
+		panic(err)
 	}
 }

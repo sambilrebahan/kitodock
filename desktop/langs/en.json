@@ -77,7 +77,8 @@
       "title": "This machine",
       "cpu": "CPU",
       "ram": "Memory",
-      "disk": "Disk (C:)"
+      "disk": "Disk (C:)",
+      "gpu": "GPU"
     },
     "noServices": {
       "title": "Nothing to show yet",
@@ -281,6 +282,13 @@
       "edit": "Edit nginx vhost",
       "save": "Save & reload",
       "hint": "Hand edit; re-applying the project from its card regenerates this file."
+    },
+    "extensions": {
+      "title": "PHP extensions",
+      "filter": "Filter extensions…",
+      "loaded": "loaded",
+      "unshipped": "dll not shipped",
+      "empty": "No extensions match."
     }
   },
   "ca": {
@@ -355,7 +363,9 @@
     "split": "Split",
     "splitH": "Split horizontally",
     "splitV": "Split vertically",
-    "sshTab": "SSH host…"
+    "sshTab": "SSH host…",
+    "detach": "Detach to own window",
+    "reattach": "Reattach pane"
   },
   "cron": {
     "title": "Cron",

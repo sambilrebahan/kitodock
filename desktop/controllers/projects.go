@@ -150,6 +150,40 @@ func (p *Projects) SaveProjectVhost(name, content string) error {
 	return nil
 }
 
+// PhpExtensionView merges ini state with the live module list.
+type PhpExtensionView struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	Shipped bool   `json:"shipped"`
+	// Loaded reflects the running interpreter (php -m); best effort.
+	Loaded bool `json:"loaded"`
+}
+
+// ListPhpExtensions reports one series' extensions with live load state.
+func (p *Projects) ListPhpExtensions(series string) ([]PhpExtensionView, error) {
+	exts, err := p.php.Extensions(series)
+	if err != nil {
+		return nil, err
+	}
+	loaded := map[string]bool{}
+	for _, name := range p.php.LoadedExtensions(series) {
+		loaded[name] = true
+	}
+	out := make([]PhpExtensionView, 0, len(exts))
+	for _, e := range exts {
+		out = append(out, PhpExtensionView{
+			Name: e.Name, Enabled: e.Enabled, Shipped: e.Shipped,
+			Loaded: loaded[e.Name],
+		})
+	}
+	return out, nil
+}
+
+// SetPhpExtension toggles one ini entry for a series.
+func (p *Projects) SetPhpExtension(series, name string, enabled bool) error {
+	return p.php.SetExtension(series, name, enabled)
+}
+
 // ListProjectRoutes exposes the mirrored route table (canonical anchors
 // and, later, preview worktrees).
 func (p *Projects) ListProjectRoutes() []projectroutes.Route {

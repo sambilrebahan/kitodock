@@ -32,6 +32,7 @@ export type ServiceCard = {
 
 type Metrics = {
   cpu: number;
+  gpu: number;
   ramUsed: number;
   ramTotal: number;
   diskFree: number;
@@ -225,6 +226,7 @@ function MetricsPanel({ sample }: { sample: Metrics }) {
       </h2>
       <div className="grid grid-cols-3 gap-3">
         <Bar label={t("dashboard.metrics.cpu")} percent={sample.cpu} detail={`${sample.cpu}%`} />
+        <Bar label={t("dashboard.metrics.gpu")} percent={sample.gpu} detail={`${sample.gpu}%`} />
         <Bar label={t("dashboard.metrics.ram")} percent={ramPct} detail={`${ramPct}%`} />
         <Bar label={t("dashboard.metrics.disk")} percent={diskPct} detail={`${diskPct}%`} />
       </div>

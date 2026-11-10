@@ -376,9 +376,11 @@ func (c *SSH) pumpShell(id string, session *ssh.Session) {
 		n, err := session.Read(buf)
 		if n > 0 {
 			c.bus.Emit(EvSSHData, map[string]any{"id": id, "data": string(buf[:n])})
+			termAppend(id, string(buf[:n]))
 		}
 		if err != nil {
 			c.bus.Emit(EvSSHExit, map[string]any{"id": id})
+			termExit(id)
 			c.closeShell(id)
 			return
 		}

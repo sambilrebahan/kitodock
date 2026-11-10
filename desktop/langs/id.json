@@ -77,7 +77,8 @@
       "title": "Mesin ini",
       "cpu": "CPU",
       "ram": "Memori",
-      "disk": "Disk (C:)"
+      "disk": "Disk (C:)",
+      "gpu": "GPU"
     },
     "noServices": {
       "title": "Belum ada yang bisa ditampilkan",
@@ -281,6 +282,13 @@
       "edit": "Edit vhost nginx",
       "save": "Simpan & muat ulang",
       "hint": "Edit manual; menerapkan ulang proyek dari kartunya akan meregenerasi file ini."
+    },
+    "extensions": {
+      "title": "Ekstensi PHP",
+      "filter": "Saring ekstensi…",
+      "loaded": "termuat",
+      "unshipped": "dll tidak tersedia",
+      "empty": "Tidak ada ekstensi yang cocok."
     }
   },
   "ca": {
@@ -355,7 +363,9 @@
     "split": "Split",
     "splitH": "Split horizontal",
     "splitV": "Split vertikal",
-    "sshTab": "Host SSH…"
+    "sshTab": "Host SSH…",
+    "detach": "Lepas ke jendela sendiri",
+    "reattach": "Kembalikan pane"
   },
   "cron": {
     "title": "Cron",

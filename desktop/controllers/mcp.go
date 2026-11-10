@@ -24,8 +24,18 @@ type MCP struct {
 	bus   *EventBus
 	owner *ownerhttp.Server
 	deps  MCPDeps
+	// term carries the detached-window stream methods.
+	term TermDeps
 	// setEnabled persists the preference so the next start resumes it.
 	setEnabled func(bool) error
+}
+
+// TermDeps is the terminal stream detached windows ride on; nil when the
+// composition root has no terminal controller.
+type TermDeps interface {
+	TermPoll(ptyID string, after uint64) (chunks []termChunk, exited bool)
+	TermWrite(ptyID, data string) error
+	TermResize(ptyID string, cols, rows uint16) error
 }
 
 // MCPDeps supplies the operations the tools expose; the composition root
@@ -68,6 +78,20 @@ type MCPService struct {
 // persists the on/off preference (nil disables persistence).
 func NewMCP(bus *EventBus, deps MCPDeps, setEnabled func(bool) error) *MCP {
 	return &MCP{bus: bus, deps: deps, setEnabled: setEnabled}
+}
+
+// SetTermDeps installs the terminal bridge for detached windows.
+func (c *MCP) SetTermDeps(term TermDeps) { c.term = term }
+
+// EnsureEndpoint starts the loopback endpoint if it is not already
+// running and returns its base URL and token. Detached windows need it
+// even when the MCP registrations themselves are off.
+func (c *MCP) EnsureEndpoint() (string, string, error) {
+	if c.owner == nil {
+		auditPath := filepath.Join(paths.AgentsDir(), "mcp-audit.jsonl")
+		c.owner = ownerhttp.NewServer(c.dispatch, auditPath)
+	}
+	return c.owner.Start()
 }
 
 // MCPStatus is the settings-facing state.
@@ -233,6 +257,38 @@ func (c *MCP) dispatch(method string, payload json.RawMessage) (any, error) {
 		return c.deps.CaptureContext(project)
 	case "mail_list":
 		return c.deps.Mailbox(25)
+	case "term_poll":
+		if c.term == nil {
+			return nil, fmt.Errorf("terminal bridge unavailable")
+		}
+		ptyID, _ := args["ptyId"].(string)
+		after, _ := args["since"].(float64)
+		if ptyID == "" {
+			return nil, fmt.Errorf("ptyId is required")
+		}
+		chunks, exited := c.term.TermPoll(ptyID, uint64(after))
+		return map[string]any{"chunks": chunks, "exited": exited}, nil
+	case "term_write":
+		if c.term == nil {
+			return nil, fmt.Errorf("terminal bridge unavailable")
+		}
+		ptyID, _ := args["ptyId"].(string)
+		data, _ := args["data"].(string)
+		if ptyID == "" {
+			return nil, fmt.Errorf("ptyId is required")
+		}
+		return map[string]any{"ok": true}, c.term.TermWrite(ptyID, data)
+	case "term_resize":
+		if c.term == nil {
+			return nil, fmt.Errorf("terminal bridge unavailable")
+		}
+		ptyID, _ := args["ptyId"].(string)
+		cols, _ := args["cols"].(float64)
+		rows, _ := args["rows"].(float64)
+		if ptyID == "" {
+			return nil, fmt.Errorf("ptyId is required")
+		}
+		return map[string]any{"ok": true}, c.term.TermResize(ptyID, uint16(cols), uint16(rows))
 	}
 	return nil, fmt.Errorf("unknown method %q", method)
 }

@@ -15,6 +15,7 @@ import (
 // draws bars, not charts, and a decimal of a percent is noise.
 type Sample struct {
 	CPU       int    `json:"cpu"`
+	GPU       int    `json:"gpu"`
 	RAMUsed   uint64 `json:"ramUsed"`
 	RAMTotal  uint64 `json:"ramTotal"`
 	DiskFree  uint64 `json:"diskFree"`
@@ -112,7 +113,7 @@ type memoryStatus struct {
 
 // Collect takes one sample of everything.
 func Collect() Sample {
-	sample := Sample{CPU: cpu.percent()}
+	sample := Sample{CPU: cpu.percent(), GPU: gpu.percent()}
 
 	var mem memoryStatus
 	mem.Length = uint32(unsafe.Sizeof(mem))

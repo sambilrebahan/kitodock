@@ -42,6 +42,7 @@ type App struct {
 	Deployments   *controllers.Deployments
 	Agents        *controllers.Agents
 	Notifications *controllers.Notifications
+	WindowInfo    *controllers.WindowInfo
 	MCP           *controllers.MCP
 	Updates       *controllers.Updates
 	CommandCenter *controllers.CommandCenter
@@ -110,6 +111,7 @@ func NewApp(trayIcon []byte) *App {
 		notificationsCtrl.Push("failed", name, err.Error())
 	})
 	projectsCtrl.SetCreateServing(serving)
+
 	// Agent sessions ride the same PTY registry as the terminal
 	// workspace; exits feed both the pane-close event and the agent bookkeeping.
 	termCtrl.Registry().NotifyExit(func(ptyID string) {
@@ -120,6 +122,20 @@ func NewApp(trayIcon []byte) *App {
 	deps := &mcpDeps{serving: serving, stack: stack,
 		emit: func(event string, data map[string]any) { bus.Emit(event, data) }}
 	mcpCtrl := controllers.NewMCP(bus, deps, cfg.SetMCPEnabled)
+	// Satellite terminal windows: the PTY stays in this process, the
+	// window attaches through the loopback endpoint. The endpoint exists
+	// independent of the MCP preference.
+	mcpCtrl.SetTermDeps(termCtrl)
+	termCtrl.SetDetacher(func(ptyID string) (*controllers.DetachedWindow, error) {
+		base, token, err := mcpCtrl.EnsureEndpoint()
+		if err != nil {
+			return nil, err
+		}
+		if err := spawnDetachedWindow(ptyID, base, token); err != nil {
+			return nil, err
+		}
+		return &controllers.DetachedWindow{PtyID: ptyID, URL: base, Token: token}, nil
+	})
 	updatesCtrl := controllers.NewUpdates(bus, "sambilrebahan/kitodock")
 	commandCenter := controllers.NewCommandCenter(bus,
 		func() controllers.CommandContext {
@@ -181,6 +197,7 @@ func NewApp(trayIcon []byte) *App {
 		Deployments:   deployCtrl,
 		Agents:        agentsCtrl,
 		Notifications: notificationsCtrl,
+		WindowInfo:    controllers.NewWindowInfoMain(),
 		MCP:           mcpCtrl,
 		Updates:       updatesCtrl,
 		CommandCenter: commandCenter,

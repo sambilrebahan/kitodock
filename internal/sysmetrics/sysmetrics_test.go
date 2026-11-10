@@ -32,4 +32,8 @@ func TestSampleIsSane(t *testing.T) {
 	if sample.CPU < 0 || sample.CPU > 100 {
 		t.Errorf("CPU percent %d out of range", sample.CPU)
 	}
+	// GPU may legitimately read 0 (no counter family); sanity is the range.
+	if sample.GPU < 0 || sample.GPU > 100 {
+		t.Errorf("GPU percent %d out of range", sample.GPU)
+	}
 }

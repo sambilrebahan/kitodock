@@ -1,7 +1,8 @@
 # Progress — Review Menyeluruh & Penutupan Celah (pasca-Fase 6)
 
-> Status: **SELESAI** (2026-11-10) · Audit penuh PLAN + roadmap 0–6 terhadap kode nyata,
-> diikuti eksekusi seluruh temuan. Audit originalitas: §4.
+> Status: **SELESAI** (2026-11-10, dua ronde) · Audit penuh PLAN + roadmap 0–6 terhadap
+> kode nyata, diikuti eksekusi seluruh temuan — ronde 2 mengimplementasi ulang semua yang
+> semula ditunda. Audit originalitas: §4.
 
 ## 1. Metode
 
@@ -40,21 +41,28 @@ kode lewat pemeriksaan langsung (grep binding/controller/UI/pemanggil), bukan da
 | PLAN.md baris 96–98 — catatan fase 5 terpotong/urutan salah | ✅ Diperbaiki |
 | deviasi VcRedistModal (F1) tak terdokumentasi | ✅ Diamendemen di roadmap (payload `service:error` + dialog = setara fungsional) |
 
-### Dijadwalkan ulang (amend eksplisit di roadmap, dengan alasan)
+### Ronda kedua: yang semula dijadwalkan ulang, kini diimplementasi
 
-- **GPU engine metrics** — butuh GPU fisik untuk diverifikasi.
-- **PECL instalasi biner + PhpExtensionsModal + tuning forms** — distribusi DLL + pengujian
-  terhadap instalasi PHP nyata; `EnsureIni`/ekstensi inti sudah jalan di backend.
-- **Floating window detach/reattach + `--terminal-window`** — pasca-1.0; split-tree + pane SSH
-  telah memenuhi kebutuhan inti (posisi konsisten dengan fase-3 §5).
-- **`internal/gitworkspace`** — tidak dibangun; kebutuhan agents terpenuhi lewat discovery
-  transcript + PTY bersama; checkout worktree menyusul bersama preview-worktree penuh.
+> Update 2026-11-10 (lanjutan): pemilik meminta semua temuan diperbaiki, termasuk yang
+> ditunda. Keempatnya dieksekusi di commit lanjutan.
+
+| Temuan | Implementasi |
+| --- | --- |
+| **GPU engine metrics** | `sysmetrics/gpu_windows.go`: PDH "GPU Engine(*)\\Utilization Percentage" via counter *array* (jumlah semua engine, cap 100); mesin tanpa counter family → latch sekali → 0 selamanya (bukan error stream); bar GPU di Dashboard |
+| **PhpExtensionsModal** | `php/extensions.go`: daftar ekstensi (entri php.ini apa adanya + DLL ter-ship yang tak tercantum), toggle entri (enable aktifkan/append; disable beri komentar — riwayat terlihat), tolak nama tanpa DLL, merge live `php -m`; modal di Projects per seri PHP proyek. **Unduhan PECL biner tetap ditunda** (distribusi DLL per versi — dicatat roadmap) |
+| **Floating window detach/reattach + `--terminal-window`** | `termHub` ring 512 KiB/PTY dengan seq global (pump PTY lokal + SSH keduanya mengisi); endpoint owner `term_poll/write/resize` (bearer); personality `--terminal-window <ptyId>` = jendela Wails kedua (WindowInfo role probe → komponen `DetachedTerminal` xterm + polling 80 ms via fetch); kredensial lewat env, bukan argv; tombol detach per pane + chip reattach di workspace; PTY tetap hidup di proses utama, pane bisa kembali kapan pun |
+| **`internal/gitworkspace`** | `worktree list --porcelain` (path dinativisasi, refs/heads/ di-strip), `CurrentBranch`, `Resolve` (walk-up ke worktree root), `IsRepository`; 4 test dengan repositori + worktree git nyata |
+
+### Masih ditunda (satu-satunya, eksplisit)
+
+- **Unduhan PECL biner** (ekstensi tak ter-ship seperti xdebug/redis) + **tuning forms
+  nginx/apache/php** — keduanya kerja katalog/distribusi, bukan logika; dicatat di roadmap.
 
 ## 3. Verifikasi
 
 | Pemeriksaan | Hasil |
 | --- | --- |
-| `go test ./...` (fresh) | ✅ **39 paket hijau** |
+| `go test ./...` (fresh) | ✅ **40 paket hijau** (gitworkspace baru) |
 | `go vet -unsafeptr=false` | ✅ |
 | Frontend vitest + lint + build | ✅ **14/14 test** (2 baru: bare-strings), 0 error lint |
 | Binary GUI + CLI (+ cross-compile linux CLI) | ✅ |

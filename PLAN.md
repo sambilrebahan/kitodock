@@ -96,6 +96,13 @@ Fase 2).
 > teraudit + registrasi 3 klien, command palette Ctrl+K, updater terverifikasi sha256,
 > CLI kitodock-deploy; cloud dijadwalkan ulang sesuai opsi roadmap; 38 paket hijau;
 > audit 0 komentar prosa identik).
+> **Ronde review-final + penutupan penuh** 2026-11-10 — lihat
+> [docs/progress/review-final.md](docs/progress/review-final.md)
+> (audit seluruh PLAN/roadmap vs kode; perbaikan --cron-run & GenerateID; create-project,
+> vhost editor, CA/diagnostik, bell notifikasi, clipboard xterm, tab Agents; ronde-2
+> mengimplementasi GPU engine, modal ekstensi PHP, jendela terminal terpisah
+> --terminal-window, gitworkspace; 40 paket hijau; hanya unduhan PECL biner + tuning forms
+> yang tertunda, eksplisit).
 
 ## 5. Estimasi Effort Relatif
 

@@ -190,13 +190,57 @@ func (t *Terminal) StreamPtyData(id string) {
 					"id":   id,
 					"data": string(buf[:n]),
 				})
+				termAppend(id, string(buf[:n]))
 			}
 			if err != nil {
 				t.bus.Emit(EvTermExit, map[string]any{"id": id})
+				termExit(id)
 				return
 			}
 		}
 	}()
+}
+
+// TermWrite satisfies the detached-window bridge.
+func (t *Terminal) TermWrite(ptyID, data string) error { return t.WritePty(ptyID, data) }
+
+// TermResize satisfies the detached-window bridge.
+func (t *Terminal) TermResize(ptyID string, cols, rows uint16) error {
+	return t.ResizePty(ptyID, cols, rows)
+}
+
+// TermPoll serves the output hub for detached windows.
+func (t *Terminal) TermPoll(ptyID string, after uint64) (chunks []termChunk, exited bool) {
+	return termSince(ptyID, after)
+}
+
+// DetachedWindow describes one spawned satellite window.
+type DetachedWindow struct {
+	PtyID string `json:"ptyId"`
+	URL   string `json:"url"`
+	Token string `json:"token"`
+}
+
+// detacher spawns satellite windows; installed by the composition root
+// once the owner endpoint exists.
+var detachTerminalWindow func(ptyID string) (*DetachedWindow, error)
+
+// SetDetacher installs the satellite spawner.
+func (t *Terminal) SetDetacher(fn func(ptyID string) (*DetachedWindow, error)) {
+	detachTerminalWindow = fn
+}
+
+// OpenDetachedWindow spawns a separate terminal window bound to a live
+// PTY. The PTY keeps running in this process; the window attaches to it
+// through the loopback endpoint.
+func (t *Terminal) OpenDetachedWindow(ptyID string) (*DetachedWindow, error) {
+	if _, ok := t.pty.Get(ptyID); !ok {
+		return nil, fmt.Errorf("terminal %s is not running", ptyID)
+	}
+	if detachTerminalWindow == nil {
+		return nil, fmt.Errorf("detached windows are unavailable")
+	}
+	return detachTerminalWindow(ptyID)
 }
 
 // CloseAll ends every PTY (shutdown).
