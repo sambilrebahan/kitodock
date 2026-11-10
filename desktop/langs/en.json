@@ -201,6 +201,21 @@
       "apply": "Apply",
       "portableHint": "Artifact staged. Close Kitodock, replace the folder contents with it, then start again.",
       "msiHint": "Installer started; Kitodock will relaunch after it finishes."
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "help": "Local trust and runtime health."
+    },
+    "ca": {
+      "title": "Local CA",
+      "trusted": "Trusted by this machine",
+      "untrusted": "Not trusted yet — browsers will warn on https:// until trusted",
+      "trust": "Trust the CA",
+      "trusting": "Importing…"
+    },
+    "webview": {
+      "installed": "installed",
+      "missing": "not installed"
     }
   },
   "tray": {
@@ -241,6 +256,31 @@
       "argsPlaceholder": "--queue=default",
       "logs": "Logs",
       "noLogs": "No output yet."
+    },
+    "new": {
+      "button": "New project",
+      "title": "Create a project",
+      "kind": "Kind",
+      "name": "Name",
+      "gitUrl": "Repository URL",
+      "pkg": "Package manager",
+      "running": "Creating…",
+      "create": "Create",
+      "kinds": {
+        "laravel": "Laravel (composer create-project)",
+        "wordpress": "WordPress",
+        "git": "Git clone",
+        "vite": "Vite",
+        "next": "Next.js",
+        "nuxt": "Nuxt",
+        "astro": "Astro",
+        "blank": "Empty folder"
+      }
+    },
+    "vhost": {
+      "edit": "Edit nginx vhost",
+      "save": "Save & reload",
+      "hint": "Hand edit; re-applying the project from its card regenerates this file."
     }
   },
   "ca": {
@@ -354,7 +394,13 @@
     "saveMerged": "Save anyway",
     "shutdownTitle": "Unsaved documents",
     "shutdownBody": "You have {{count}} unsaved document(s). Quit anyway?",
-    "shutdownDiscard": "Discard and quit"
+    "shutdownDiscard": "Discard and quit",
+    "agents": "Agents",
+    "agentsLaunch": "Launch in this project",
+    "agentsSessions": "Sessions",
+    "agentsActivity": "Activity",
+    "externalLinkBlocked": "External link blocked",
+    "navigatorProject": "Navigator project"
   },
   "ssh": {
     "tabHosts": "Hosts",
@@ -491,5 +537,10 @@
   "commandPalette": {
     "placeholder": "Type a command… (pages, projects, services, ssh, agents)",
     "empty": "No matching commands."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Nothing here yet.",
+    "markAll": "Mark all read"
   }
 }

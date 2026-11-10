@@ -348,7 +348,7 @@ export default function TerminalPage() {
             className="input py-0.5 text-xs"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            aria-label="Navigator project"
+            aria-label={t("workspace.navigatorProject")}
           >
             <option value="">—</option>
             {projects.map((name) => (
@@ -419,7 +419,20 @@ export default function TerminalPage() {
         {/* Navigator sidebar */}
         {showNavigator && projectName && (
           <div className="w-[280px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/20">
-            <WorkspaceNavigator projectName={projectName} />
+            <WorkspaceNavigator
+              projectName={projectName}
+              onAgentPane={(ptyId, title) => {
+                const tab: Tab = {
+                  id: `tab-${nextTabId++}`,
+                  root: { type: "leaf", pane: { id: ptyId, kind: "agent", host: title } },
+                  label: title,
+                };
+                setTabs((current) => {
+                  setActiveTab(current.length);
+                  return [...current, tab];
+                });
+              }}
+            />
           </div>
         )}
 

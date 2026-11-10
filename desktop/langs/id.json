@@ -201,6 +201,21 @@
       "apply": "Terapkan",
       "portableHint": "Artefak siap. Tutup Kitodock, ganti isi folder dengannya, lalu jalankan lagi.",
       "msiHint": "Installer dijalankan; Kitodock akan dinyalakan ulang setelahnya."
+    },
+    "diagnostics": {
+      "title": "Diagnostik",
+      "help": "Kepercayaan lokal dan kesehatan runtime."
+    },
+    "ca": {
+      "title": "CA lokal",
+      "trusted": "Dipercaya mesin ini",
+      "untrusted": "Belum dipercaya — browser akan memperingatkan https:// sampai dipercaya",
+      "trust": "Percayai CA",
+      "trusting": "Mengimpor…"
+    },
+    "webview": {
+      "installed": "terpasang",
+      "missing": "tidak terpasang"
     }
   },
   "tray": {
@@ -241,6 +256,31 @@
       "argsPlaceholder": "--queue=default",
       "logs": "Log",
       "noLogs": "Belum ada keluaran."
+    },
+    "new": {
+      "button": "Proyek baru",
+      "title": "Buat proyek",
+      "kind": "Jenis",
+      "name": "Nama",
+      "gitUrl": "URL repositori",
+      "pkg": "Package manager",
+      "running": "Membuat…",
+      "create": "Buat",
+      "kinds": {
+        "laravel": "Laravel (composer create-project)",
+        "wordpress": "WordPress",
+        "git": "Git clone",
+        "vite": "Vite",
+        "next": "Next.js",
+        "nuxt": "Nuxt",
+        "astro": "Astro",
+        "blank": "Folder kosong"
+      }
+    },
+    "vhost": {
+      "edit": "Edit vhost nginx",
+      "save": "Simpan & muat ulang",
+      "hint": "Edit manual; menerapkan ulang proyek dari kartunya akan meregenerasi file ini."
     }
   },
   "ca": {
@@ -354,7 +394,13 @@
     "saveMerged": "Simpan paksa",
     "shutdownTitle": "Dokumen belum disimpan",
     "shutdownBody": "Ada {{count}} dokumen yang belum disimpan. Tetap keluar?",
-    "shutdownDiscard": "Buang dan keluar"
+    "shutdownDiscard": "Buang dan keluar",
+    "agents": "Agents",
+    "agentsLaunch": "Luncurkan di proyek ini",
+    "agentsSessions": "Sesi",
+    "agentsActivity": "Aktivitas",
+    "externalLinkBlocked": "Tautan eksternal diblokir",
+    "navigatorProject": "Proyek navigator"
   },
   "ssh": {
     "tabHosts": "Host",
@@ -491,5 +537,10 @@
   "commandPalette": {
     "placeholder": "Ketik perintah… (halaman, proyek, layanan, ssh, agents)",
     "empty": "Tidak ada perintah yang cocok."
+  },
+  "notifications": {
+    "title": "Notifikasi",
+    "empty": "Belum ada apa pun.",
+    "markAll": "Tandai semua dibaca"
   }
 }

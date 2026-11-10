@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"kitodock/internal/agents"
+	"kitodock/internal/cron"
 	"kitodock/internal/mcpbridge"
 	"kitodock/internal/paths"
 
@@ -48,6 +49,9 @@ func main() {
 			return
 		case "--agent-event":
 			runAgentEvent(os.Args[2:])
+			return
+		case "--cron-run":
+			runCronOnce(os.Args[2:])
 			return
 		}
 	}
@@ -180,4 +184,19 @@ func clipHookSummary(s string) string {
 		s = s[:140] + "…"
 	}
 	return s
+}
+
+// runCronOnce is the Task Scheduler personality: background-mode cron
+// entries re-invoke this binary every minute; the job's schedule decides
+// whether this minute actually fires. Never touches the GUI.
+func runCronOnce(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: kitodock --cron-run <job-id>")
+		os.Exit(1)
+	}
+	if err := cron.RunOnceFromConfig(paths.ConfigFile(), args[0]); err != nil {
+		// Task Scheduler has no console; failures land in the app log dir.
+		fmt.Fprintln(os.Stderr, "kitodock:", err)
+		os.Exit(1)
+	}
 }

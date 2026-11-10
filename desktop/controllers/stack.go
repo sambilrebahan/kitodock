@@ -156,6 +156,9 @@ type Services struct {
 	install     *Installer
 	recommended []string
 	ctx         context.Context
+
+	// notify lands service failures in the inbox; set after construction.
+	notify func(name string, err error)
 }
 
 func NewServices(bus *EventBus, cfg *config.Store, mgr *services.Manager, inst *Installer, recommended []string) *Services {
@@ -171,7 +174,8 @@ func NewServices(bus *EventBus, cfg *config.Store, mgr *services.Manager, inst *
 func (s *Services) SetContext(ctx context.Context) { s.ctx = ctx }
 
 // reportFailure turns a service death into an event, attaching the
-// redistributable download when that is the verdict.
+// redistributable download when that is the verdict, and files it into
+// the notification inbox.
 func (s *Services) reportFailure(name string, err error) {
 	payload := map[string]any{"name": name, "message": err.Error()}
 	var missing *vcruntime.Missing
@@ -179,7 +183,13 @@ func (s *Services) reportFailure(name string, err error) {
 		payload["redist"] = missing.URL
 	}
 	s.bus.Emit(EvServiceError, payload)
+	if s.notify != nil {
+		s.notify(name, err)
+	}
 }
+
+// SetNotifier installs the inbox hook (kind, message).
+func (s *Services) SetNotifier(fn func(name string, err error)) { s.notify = fn }
 
 // ServiceView is one dashboard card.
 type ServiceView struct {

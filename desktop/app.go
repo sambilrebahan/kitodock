@@ -41,6 +41,7 @@ type App struct {
 	SSH           *controllers.SSH
 	Deployments   *controllers.Deployments
 	Agents        *controllers.Agents
+	Notifications *controllers.Notifications
 	MCP           *controllers.MCP
 	Updates       *controllers.Updates
 	CommandCenter *controllers.CommandCenter
@@ -98,6 +99,17 @@ func NewApp(trayIcon []byte) *App {
 	if err != nil {
 		panic(fmt.Sprintf("agent manager: %v", err))
 	}
+
+	// The notification inbox behind the sidebar bell; service failures
+	// land in it through the Services controller hook.
+	notificationsCtrl, err := controllers.NewNotifications(bus)
+	if err != nil {
+		panic(fmt.Sprintf("notification store: %v", err))
+	}
+	servicesCtrl.SetNotifier(func(name string, err error) {
+		notificationsCtrl.Push("failed", name, err.Error())
+	})
+	projectsCtrl.SetCreateServing(serving)
 	// Agent sessions ride the same PTY registry as the terminal
 	// workspace; exits feed both the pane-close event and the agent bookkeeping.
 	termCtrl.Registry().NotifyExit(func(ptyID string) {
@@ -168,6 +180,7 @@ func NewApp(trayIcon []byte) *App {
 		SSH:           sshCtrl,
 		Deployments:   deployCtrl,
 		Agents:        agentsCtrl,
+		Notifications: notificationsCtrl,
 		MCP:           mcpCtrl,
 		Updates:       updatesCtrl,
 		CommandCenter: commandCenter,

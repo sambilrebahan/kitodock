@@ -73,6 +73,9 @@ type Config struct {
 	// MCPEnabled turns on the loopback MCP endpoint and the client
 	// registrations. Off by default: it is an experimental surface.
 	MCPEnabled bool `json:"mcpEnabled,omitempty"`
+	// Theme is the persisted appearance theme id (Nebula, Aurora, …);
+	// empty means the frontend default.
+	Theme string `json:"theme,omitempty"`
 }
 
 // defaultsFor is the value a fresh environment starts from. Returned through
@@ -249,6 +252,11 @@ func (s *Store) SetLanguage(code string) error {
 // SetMCPEnabled toggles the experimental MCP endpoint preference.
 func (s *Store) SetMCPEnabled(enabled bool) error {
 	return s.commit(func(c *Config) { c.MCPEnabled = enabled })
+}
+
+// SetTheme persists the appearance theme id.
+func (s *Store) SetTheme(id string) error {
+	return s.commit(func(c *Config) { c.Theme = id })
 }
 
 // Watch reports the parsed configuration whenever the file changes, until

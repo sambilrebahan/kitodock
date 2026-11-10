@@ -5,15 +5,19 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"kitodock/internal/atomicfile"
 	"kitodock/internal/config"
 	knode "kitodock/internal/nodejs"
+	"kitodock/internal/paths"
 	kphp "kitodock/internal/php"
+	"kitodock/internal/projectroutes"
 	"kitodock/internal/projects"
 )
 
@@ -34,10 +38,125 @@ type Projects struct {
 	php     *kphp.Manager
 	node    *knode.Manager
 	ctx     context.Context
+	// create is the extended serving seam; set via SetCreateServing.
+	create CreateServing
 }
 
 func NewProjects(bus *EventBus, cfg *config.Store, serving ProjectServing, php *kphp.Manager, node *knode.Manager) *Projects {
 	return &Projects{bus: bus, cfg: cfg, serving: serving, php: php, node: node}
+}
+
+// CreateServing is the extra surface creation and the vhost editor need.
+type CreateServing interface {
+	// ProjectsRoot is the parent folder new projects are created in.
+	ProjectsRoot() string
+	// NginxSitesDir / ReloadWebServers serve the vhost editor.
+	NginxSitesDir() string
+	ReloadWebServers()
+	// ListRoutes exposes the mirrored route table.
+	ListRoutes() []projectroutes.Route
+}
+
+// SetCreateServing installs the extended serving seam (called by the
+// composition root right after construction).
+func (p *Projects) SetCreateServing(s CreateServing) { p.create = s }
+
+// CreateProjectRequest describes one scaffolding request from the UI.
+type CreateProjectRequest struct {
+	Name           string `json:"name"`
+	Kind           string `json:"kind"`
+	GitURL         string `json:"gitUrl,omitempty"`
+	PackageManager string `json:"packageManager,omitempty"`
+}
+
+// CreateKinds lists the scaffolding kinds in picker order.
+func (p *Projects) CreateKinds() []string {
+	out := make([]string, len(projects.AllCreateKinds))
+	for i, k := range projects.AllCreateKinds {
+		out[i] = string(k)
+	}
+	return out
+}
+
+// CreateProject scaffolds a new project in the managed root, streaming
+// progress as project:create events, then applies its serving config so
+// the site is live immediately.
+func (p *Projects) CreateProject(req CreateProjectRequest) error {
+	if req.Name == "" || p.create == nil {
+		return fmt.Errorf("project name is required")
+	}
+	creator := &projects.Creator{
+		PhpExeFor: func() string {
+			if dir := p.php.ActivePath(); dir != "" {
+				return dir
+			}
+			return "php"
+		},
+		ComposerFor: func() string {
+			if cmd := findComposer(p.php.ActivePath()); cmd != "" {
+				return cmd
+			}
+			return "composer"
+		},
+		NodeDirFor: func() string { return paths.NodeDir() },
+	}
+	emit := func(line string) {
+		p.bus.Emit(EvProjectCreate, map[string]any{"name": req.Name, "line": line})
+	}
+	if err := creator.Create(context.Background(), projects.CreateOptions{
+		Name:           req.Name,
+		Kind:           projects.CreateKind(req.Kind),
+		Dir:            p.create.ProjectsRoot(),
+		GitURL:         req.GitURL,
+		PackageManager: req.PackageManager,
+	}, emit); err != nil {
+		p.bus.Emit(EvProjectCreate, map[string]any{"name": req.Name, "error": err.Error()})
+		return err
+	}
+	p.bus.Emit(EvProjectCreate, map[string]any{"name": req.Name, "done": true})
+	return nil
+}
+
+// VhostFile is one rendered server config for the editor.
+type VhostFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// GetProjectVhost returns the project's nginx config for hand editing.
+func (p *Projects) GetProjectVhost(name string) (VhostFile, error) {
+	if p.create == nil {
+		return VhostFile{}, fmt.Errorf("serving unavailable")
+	}
+	path := filepath.Join(p.create.NginxSitesDir(), name+".conf")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return VhostFile{}, fmt.Errorf("no vhost for %s yet — open the project first", name)
+	}
+	return VhostFile{Path: path, Content: string(data)}, nil
+}
+
+// SaveProjectVhost writes a hand-edited vhost and reloads the web server.
+// Re-applying the project from its card regenerates the managed render.
+func (p *Projects) SaveProjectVhost(name, content string) error {
+	if p.create == nil {
+		return fmt.Errorf("serving unavailable")
+	}
+	path := filepath.Join(p.create.NginxSitesDir(), name+".conf")
+	if err := atomicfile.Write(path, []byte(content), 0o644); err != nil {
+		return err
+	}
+	p.create.ReloadWebServers()
+	return nil
+}
+
+// ListProjectRoutes exposes the mirrored route table (canonical anchors
+// and, later, preview worktrees).
+func (p *Projects) ListProjectRoutes() []projectroutes.Route {
+	if p.create == nil {
+		return nil
+	}
+	return p.create.ListRoutes()
 }
 
 // SetContext installs the Wails context (URL opening).

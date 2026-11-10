@@ -67,6 +67,10 @@ yang akan dipakai semua fase berikutnya.
   imagick/memcached) bisa masuk Fase 2 bila PHP manager belum siap — **putusan: katalog +
   install dasar di Fase 1, PECL di Fase 2**.
 - `internal/tray` — systray menu service + quit + label i18n (project menu menyusul Fase 2).
+  *(Realisasi: VcRedistModal tidak jadi modal khusus — URL redistributable mengalir lewat event
+  `service:error` + dialog; NotificationBell terealisasi ronde review-final; GPU engine PDH
+  dan PECL instalasi biner DIJADWALKAN ULANG — butuh GPU fisik + distribusi DLL; lihat
+  docs/progress/review-final.md.)*
 - `internal/sysmetrics` — PDH CPU + GPU engine + gopsutil mem/disk + vendor.
 - `desktop/controllers/services.go`, `installer.go`, `system.go` (metrics, ports via netports —
   netports masuk fase ini juga karena PortsModal), wiring lifecycle: KillOrphans saat startup,
@@ -143,6 +147,9 @@ dev server ter-proxy. Fase terpadat; boleh dipecah 2a/2b bila perlu.
   tags, TLD, delete, NewProjectModal 8 jenis, PhpExtensionsModal, DevServerLogs.
 - Halaman **Downloads** melengkap (tuning forms masuk Settings).
 - **Settings** — tab Services: CA card + tuning nginx/apache/php.
+  *(Realisasi: CA card + diagnostik WebView2 ada di panel Diagnostics (review-final); tuning
+  forms DIJADWALKAN ULANG; PhpExtensionsModal + PECL biner DIJADWALKAN ULANG — lihat
+  docs/progress/review-final.md.)*
 
 **AC**
 1. `composer create-project laravel/laravel` dari UI → project terdeteksi laravel → vhost
@@ -183,6 +190,9 @@ dev server ter-proxy. Fase terpadat; boleh dipecah 2a/2b bila perlu.
   inbox `%TEMP%\kitodock-attach`, jendela `--terminal-window`), `devserver.go` lengkap
   (cron CRUD/toggle/run-now + queue).
 - Lifecycle: `startupDetached` mode.
+  *(Realisasi: floating window detach/reattach + personality `--terminal-window` DIJADWALKAN
+  ULANG pasca-1.0 — split-tree tab/split + pane SSH telah memenuhi kebutuhan inti; lihat
+  docs/progress/review-final.md.)*
 
 **Frontend**
 - `components/terminal/` penuh: Terminal.tsx (xterm+fit+webgl+font-wait+clipboard+keys),
@@ -218,6 +228,9 @@ dev server ter-proxy. Fase terpadat; boleh dipecah 2a/2b bila perlu.
   list paginasi cursor + stale detection, Read 2MiB / image (+WebP chunk), Save optimistic
   revision + lock per dokumen, BOM/EOL preserve, validasi path.
 - `internal/gitworkspace` — resolusi current/branch/worktree (untuk agents nanti + checkout Git).
+  *(Realisasi: paket TIDAK dibangun — kebutuhan agents diselesaikan lewat discovery transcript
+  + PTY bersama; checkout worktree DIJADWALKAN ULANG bersama fitur preview-worktree penuh;
+  tab Agents di WorkspaceNavigator AKTIF sejak review-final.)*
 - `internal/sourcecontrol` — facade git CLI tervalidasi penuh (authority digest + TOCTOU
   re-verify, porcelain=v2 parser, redaksi streaming, operasi async + exclusion per common-dir,
   stage/unstage pathspec-stdin literal, commit index penuh, push eksplisit, diff dua sisi

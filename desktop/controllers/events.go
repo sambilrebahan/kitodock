@@ -41,6 +41,8 @@ const (
 	// EvProjectChanged announces a project preference change (kind:
 	// ssl/php/tld) and asks the UI to refresh.
 	EvProjectChanged = "project:changed"
+	// EvProjectCreate streams scaffolding progress for a new project.
+	EvProjectCreate = "project:create"
 	// EvProjectError reports a serving failure for a project.
 	EvProjectError = "project:error"
 	// EvDevStatus carries one dev server's state.
@@ -74,6 +76,8 @@ const (
 	EvAgentsActivity = "agents:activity"
 	// EvAgentsSession announces agent session lifecycle changes.
 	EvAgentsSession = "agents:session"
+	// EvNotificationsNew announces one inbox item arriving.
+	EvNotificationsNew = "notifications:new"
 )
 
 // Deployment run events follow deployment:<kind>:<event>:<id> where kind

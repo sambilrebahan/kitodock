@@ -1,0 +1,22 @@
+# Minimal golangci-lint surface: the CI compiles and vets; this config
+# exists so local runs of golangci-lint match the same bar without pulling
+# in noisy style linters (originality-audited codebase, see PLAN.md D5).
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - gofmt
+    - staticcheck
+    - ineffassign
+
+issues:
+  exclude-rules:
+    # Test scaffolding legitimately re-declares helpers per file.
+    - path: _test\.go
+      linters:
+        - staticcheck

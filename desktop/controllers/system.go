@@ -86,6 +86,12 @@ func (s *System) SetLanguage(code string) error {
 	return nil
 }
 
+// GetTheme returns the persisted appearance theme id ("" = default).
+func (s *System) GetTheme() string { return s.cfg.Get().Theme }
+
+// SetTheme persists the appearance theme id.
+func (s *System) SetTheme(id string) error { return s.cfg.SetTheme(id) }
+
 // ReadClipboardText returns the OS clipboard's text.
 func (s *System) ReadClipboardText() (string, error) { return clipboard.ReadText() }
 

@@ -16,7 +16,9 @@ import (
 	"kitodock/desktop/controllers"
 	"kitodock/internal/atomicfile"
 	"kitodock/internal/config"
+	"kitodock/internal/paths"
 	kphp "kitodock/internal/php"
+	"kitodock/internal/projectroutes"
 	"kitodock/internal/projects"
 	"kitodock/internal/services"
 	"kitodock/internal/sitedoctor"
@@ -34,15 +36,70 @@ type serving struct {
 	php   *kphp.Manager
 	hosts vhost.Hosts
 	emit  func(kind, detail string, err error)
+	// routes mirrors every applied project into the route table so
+	// preview worktrees have a canonical anchor to hang from.
+	routes *projectroutes.Store
 }
 
 func newServing(cfg *config.Store, stack *services.Manager, phpMgr *kphp.Manager, hostsFile string) *serving {
+	routes, _, routeErr := projectroutes.OpenStore(filepath.Join(paths.StateDir(), "project-routes.json"))
+	if routeErr != nil {
+		routes = nil // route mirroring is best-effort, never fatal
+	}
 	return &serving{
-		cfg:   cfg,
-		stack: stack,
-		php:   phpMgr,
-		hosts: vhost.Hosts{Path: hostsFile},
-		emit:  func(string, string, error) {},
+		cfg:    cfg,
+		stack:  stack,
+		php:    phpMgr,
+		hosts:  vhost.Hosts{Path: hostsFile},
+		emit:   func(string, string, error) {},
+		routes: routes,
+	}
+}
+
+// ProjectsRoot is the parent folder new projects are created in.
+func (s *serving) ProjectsRoot() string { return s.cfg.Get().Projects.Root }
+
+// ReloadWebServers re-reads configuration after a hand edit.
+func (s *serving) ReloadWebServers() { s.reloadWebServers() }
+
+// NginxSitesDir is where per-project nginx vhosts live.
+func (s *serving) NginxSitesDir() string {
+	return filepath.Join(kitodockNginxConfDir(), "sites")
+}
+
+// ListRoutes returns every mirrored route across projects.
+func (s *serving) ListRoutes() []projectroutes.Route {
+	if s.routes == nil {
+		return nil
+	}
+	out := []projectroutes.Route{}
+	for _, p := range s.ListProjects() {
+		out = append(out, s.routes.List(projectroutes.Project{Name: p.Name, TLD: s.tld()})...)
+	}
+	return out
+}
+
+// tld reads the configured project TLD.
+func (s *serving) tld() string { return s.cfg.Get().Projects.TLD }
+
+// mirrorCanonical records one project's canonical route.
+func (s *serving) mirrorCanonical(project projects.Project, ssl bool) {
+	if s.routes == nil {
+		return
+	}
+	_ = s.routes.SetCanonical(projectroutes.Project{
+		Name: project.Name, MainPath: project.Path, TLD: s.tld(), SSL: ssl,
+	}, project.Path)
+}
+
+// forgetRoutes drops every route of a project (canonical + previews).
+func (s *serving) forgetRoutes(name string) {
+	if s.routes == nil {
+		return
+	}
+	proj := projectroutes.Project{Name: name, TLD: s.tld()}
+	for _, r := range s.routes.List(proj) {
+		_ = s.routes.Remove(name, r.ID)
 	}
 }
 
@@ -216,6 +273,7 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 		return fmt.Errorf("no web server running to serve https://%s", hostname)
 	}
 
+	s.mirrorCanonical(project, s.cfg.Get().Projects.SSL[project.Name])
 	s.emit("project:applied", project.Name, nil)
 	return nil
 }
@@ -254,6 +312,7 @@ func (s *serving) RemoveProject(project projects.Project) error {
 	if removed > 0 {
 		s.reloadWebServers()
 	}
+	s.forgetRoutes(project.Name)
 	s.emit("project:removed", project.Name, nil)
 	return nil
 }
