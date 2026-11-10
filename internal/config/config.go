@@ -182,6 +182,11 @@ func (s *Store) Get() Config {
 	defer s.mu.Unlock()
 	out := s.data
 	out.Stack.Enabled = maps.Clone(out.Stack.Enabled)
+	// Every map in the document is shared by reference otherwise; a
+	// caller mutating its view would race the store's writes.
+	out.Projects.SSL = maps.Clone(out.Projects.SSL)
+	out.Projects.PhpVersions = maps.Clone(out.Projects.PhpVersions)
+	out.Projects.NodeVersions = maps.Clone(out.Projects.NodeVersions)
 	return out
 }
 

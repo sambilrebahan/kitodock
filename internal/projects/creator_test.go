@@ -64,7 +64,7 @@ func TestCreateRefusesEmptyName(t *testing.T) {
 }
 
 func TestLaravelWithoutComposerFailsClearly(t *testing.T) {
-	creator := &Creator{PhpExeFor: func() string { return "php" }, ComposerFor: func() string { return "" }}
+	creator := &Creator{PhpExeFor: func() string { return "php" }, ComposerFor: func() []string { return nil }}
 	if err := creator.Create(context.Background(), CreateOptions{
 		Name: "x", Kind: CreateLaravel, Dir: t.TempDir(),
 	}, func(string) {}); err == nil || !strings.Contains(err.Error(), "composer") {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -88,16 +89,21 @@ func (p *Projects) CreateProject(req CreateProjectRequest) error {
 	}
 	creator := &projects.Creator{
 		PhpExeFor: func() string {
+			// ActivePath is the version folder; the executable lives in it.
 			if dir := p.php.ActivePath(); dir != "" {
-				return dir
+				exe := filepath.Join(dir, "php.exe")
+				if _, err := os.Stat(exe); err == nil {
+					return exe
+				}
 			}
 			return "php"
 		},
-		ComposerFor: func() string {
+		ComposerFor: func() []string {
 			if cmd := findComposer(p.php.ActivePath()); cmd != "" {
-				return cmd
+				// "php.exe phar" arrives as one string; split to argv.
+				return strings.Fields(cmd)
 			}
-			return "composer"
+			return []string{"composer"}
 		},
 		NodeDirFor: func() string { return paths.NodeDir() },
 	}
@@ -113,6 +119,19 @@ func (p *Projects) CreateProject(req CreateProjectRequest) error {
 	}, emit); err != nil {
 		p.bus.Emit(EvProjectCreate, map[string]any{"name": req.Name, "error": err.Error()})
 		return err
+	}
+	// Bring the new project live: vhosts, hosts entry, pool if needed.
+	for _, project := range p.serving.ListProjects() {
+		if project.Name == req.Name {
+			if err := p.serving.ApplyProject(context.Background(), project); err != nil {
+				p.bus.Emit(EvProjectCreate, map[string]any{
+					"name": req.Name, "done": true,
+					"warning": "created, but serving setup failed: " + err.Error(),
+				})
+				return nil
+			}
+			break
+		}
 	}
 	p.bus.Emit(EvProjectCreate, map[string]any{"name": req.Name, "done": true})
 	return nil
@@ -425,20 +444,32 @@ func (v *ProjectView) applyNode(res projects.Resolution) {
 
 // SetProjectSSL toggles HTTPS (re-applies serving).
 func (p *Projects) SetProjectSSL(name string, enabled bool) error {
+	previous := p.cfg.Get().Projects.SSL[name]
 	if err := p.cfg.SetProjectSSL(name, enabled); err != nil {
 		return err
 	}
-	p.reapply(name)
+	if err := p.applyOne(name); err != nil {
+		// The UI must never show HTTPS on a site serving HTTP: revert the
+		// preference and rebuild the previous state before surfacing.
+		_ = p.cfg.SetProjectSSL(name, previous)
+		_ = p.applyOne(name)
+		return err
+	}
 	p.bus.Emit(EvProjectChanged, map[string]any{"kind": "ssl", "name": name})
 	return nil
 }
 
 // SetProjectPhp pins a series; "" returns to auto detection.
 func (p *Projects) SetProjectPhp(name, series string) error {
+	previous := p.cfg.Get().Projects.PhpVersions[name]
 	if err := p.cfg.SetProjectPhp(name, series); err != nil {
 		return err
 	}
-	p.reapply(name)
+	if err := p.applyOne(name); err != nil {
+		_ = p.cfg.SetProjectPhp(name, previous)
+		_ = p.applyOne(name)
+		return err
+	}
 	p.bus.Emit(EvProjectChanged, map[string]any{"kind": "php", "name": name})
 	return nil
 }
@@ -458,21 +489,42 @@ func (p *Projects) SetProjectsTLD(tld string) error {
 	if tld == "" {
 		tld = "test"
 	}
-	// Remove under the old TLD, persist, re-apply under the new one.
+	// The TLD becomes hostnames and certificate names: one DNS label.
+	if !tldLabelRe.MatchString(tld) {
+		return fmt.Errorf("TLD %q must be letters, digits and dashes (no dots or spaces)", tld)
+	}
+	if tld == p.cfg.Get().Projects.TLD {
+		return nil
+	}
+	// Remove under the old TLD, persist, re-apply under the new one. If
+	// persisting fails halfway, rebuild under the old TLD so nothing is
+	// left half-migrated.
+	previous := p.cfg.Get().Projects.TLD
 	for _, project := range p.serving.ListProjects() {
 		_ = p.serving.RemoveProject(project)
 	}
 	if err := p.cfg.SetProjectsTLD(tld); err != nil {
+		for _, project := range p.serving.ListProjects() {
+			_ = p.serving.ApplyProject(context.Background(), project)
+		}
 		return err
 	}
+	var firstErr error
 	for _, project := range p.serving.ListProjects() {
 		if err := p.serving.ApplyProject(context.Background(), project); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
 			p.bus.Emit(EvProjectError, map[string]any{"name": project.Name, "message": err.Error()})
 		}
 	}
 	p.bus.Emit(EvProjectChanged, map[string]any{"kind": "tld"})
-	return nil
+	_ = previous
+	return firstErr
 }
+
+// tldLabelRe is one DNS label: the TLD's whole grammar here.
+var tldLabelRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
 // GetTLD is the current suffix.
 func (p *Projects) GetTLD() string { return p.cfg.Get().Projects.TLD }
@@ -493,6 +545,16 @@ func (p *Projects) OpenProjectURL(name string) error {
 // Rescan re-applies one project's serving configuration.
 func (p *Projects) Rescan(name string) {
 	p.reapply(name)
+}
+
+// applyOne applies one project's serving config, returning its error.
+func (p *Projects) applyOne(name string) error {
+	for _, project := range p.serving.ListProjects() {
+		if project.Name == name {
+			return p.serving.ApplyProject(context.Background(), project)
+		}
+	}
+	return nil
 }
 
 func (p *Projects) reapply(name string) {

@@ -199,3 +199,18 @@ func TestPersistedDocumentIsValidJSONWithExpectedShape(t *testing.T) {
 		t.Errorf("stack missing or not an object: %v", doc["stack"])
 	}
 }
+
+func TestGetReturnsDeepCopies(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetProjectSSL("shop", true); err != nil {
+		t.Fatal(err)
+	}
+	view := s.Get()
+	view.Projects.SSL["shop"] = false
+	if s.Get().Projects.SSL["shop"] != true {
+		t.Fatal("caller mutation leaked into the store")
+	}
+}

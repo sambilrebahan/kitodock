@@ -27,23 +27,27 @@ import { useT } from "./lib/i18n";
 // personalities join in Phases 3 and 6; the shape of this component is
 // already prepared for them.
 export default function App() {
-  const [detached, setDetached] = useState(false);
+  // null = probe still in flight. The satellite process binds only
+  // WindowInfo, so mounting MainApp there (NotificationBell et al.)
+  // crashes before the role resolves — a splash until the answer lands.
+  const [detached, setDetached] = useState<boolean | null>(null);
 
-  // Satellite processes (--terminal-window) render a single terminal
-  // instead of the shell; the role comes from the backend.
   useEffect(() => {
     const timer = setTimeout(() => {
       WindowRole()
-        .then((role) => {
-          if (role?.role === "detached") setDetached(true);
-        })
-        .catch(() => {
-          /* main window: no probe answer needed */
-        });
+        .then((role) => setDetached(role?.role === "detached"))
+        .catch(() => setDetached(false));
     }, 0);
     return () => clearTimeout(timer);
   }, []);
 
+  if (detached === null) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0b1026]">
+        <span className="text-sm text-white/40">kitodock…</span>
+      </div>
+    );
+  }
   return detached ? <DetachedTerminal /> : <MainApp />;
 }
 

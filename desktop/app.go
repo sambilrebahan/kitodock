@@ -110,6 +110,15 @@ func NewApp(trayIcon []byte) *App {
 	servicesCtrl.SetNotifier(func(name string, err error) {
 		notificationsCtrl.Push("failed", name, err.Error())
 	})
+	serving.Notify(func(kind, detail string, err error) {
+		switch kind {
+		case "project:error":
+			bus.Emit(controllers.EvProjectError, map[string]any{"name": detail, "message": err.Error()})
+		default:
+			// applied/removed: one refresh nudge for the projects page.
+			bus.Emit(controllers.EvProjectChanged, map[string]any{"kind": kind, "name": detail})
+		}
+	})
 	projectsCtrl.SetCreateServing(serving)
 
 	// Agent sessions ride the same PTY registry as the terminal

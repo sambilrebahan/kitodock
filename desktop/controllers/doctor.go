@@ -113,7 +113,8 @@ func (d *Doctor) fixComposer(name string, target sitedoctor.Target) error {
 		return fmt.Errorf("composer not found")
 	}
 	d.line(name, "composer install…")
-	return d.stream(name, composer, target.Path, "install", "--no-interaction")
+	// findComposer may yield "php.exe phar" — an argv, not a binary.
+	return d.streamArgv(name, strings.Fields(composer), target.Path, "install", "--no-interaction")
 }
 
 func (d *Doctor) fixNodeModules(name string, target sitedoctor.Target) error {
@@ -163,6 +164,15 @@ func (d *Doctor) run(exe, dir string, args ...string) ([]byte, error) {
 }
 
 // stream runs a command and sends each output line as an event.
+// streamArgv runs a command whose first tokens are already an argv.
+func (d *Doctor) streamArgv(name string, argv []string, dir string, args ...string) error {
+	if len(argv) == 0 {
+		return fmt.Errorf("empty command")
+	}
+	full := append(append([]string{}, argv[1:]...), args...)
+	return d.stream(name, argv[0], dir, full...)
+}
+
 func (d *Doctor) stream(project, exe, dir string, args ...string) error {
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = dir

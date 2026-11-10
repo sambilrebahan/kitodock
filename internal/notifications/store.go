@@ -7,6 +7,7 @@ package notifications
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -94,6 +95,7 @@ type Store struct {
 	items []storedItem
 	how   Delivery
 	now   func() time.Time
+	idSeq uint64
 }
 
 // Open loads (or starts) the feed at path.
@@ -176,6 +178,15 @@ func (s *Store) Append(item Item) (Item, bool, error) {
 				return stored.Item, false, nil
 			}
 		}
+	}
+	// Callers describe the event, not the record: the store owns the
+	// identity and clock so every item is unique and dated.
+	if item.ID == "" {
+		s.idSeq++
+		item.ID = fmt.Sprintf("nt-%d-%d", time.Now().UnixNano(), s.idSeq)
+	}
+	if item.At.IsZero() {
+		item.At = time.Now()
 	}
 	before := append([]storedItem(nil), s.items...)
 	mark := item.fingerprint

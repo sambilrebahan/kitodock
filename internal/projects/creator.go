@@ -51,8 +51,11 @@ type CreateOptions struct {
 
 // Creator resolves what to run; the package stays tool-agnostic.
 type Creator struct {
-	PhpExeFor   func() string
-	ComposerFor func() string // composer command (exe or "php phar")
+	// PhpExeFor returns the php.exe path to run composer phars with.
+	PhpExeFor func() string
+	// ComposerFor returns the composer invocation as an argv slice —
+	// either the executable alone or [php.exe, composer.phar].
+	ComposerFor func() []string
 	NodeDirFor  func() string // node dir to prepend to PATH
 }
 
@@ -70,6 +73,10 @@ func (c *Creator) Create(ctx context.Context, opts CreateOptions, emit func(stri
 		return err
 	}
 
+	// From here on the sanitized name is the only name: folder names,
+	// composer/npm arguments and messages all use it.
+	opts.Name = name
+
 	switch opts.Kind {
 	case CreateBlank:
 		emit(fmt.Sprintf("creating %s", target))
@@ -85,7 +92,9 @@ func (c *Creator) Create(ctx context.Context, opts CreateOptions, emit func(stri
 		if opts.GitURL == "" {
 			return fmt.Errorf("git clone needs a URL")
 		}
-		return c.run(ctx, emit, "git", target, "clone", "--progress", opts.GitURL, target)
+		// git clone refuses a working directory that does not exist;
+		// run from the parent and name the target explicitly.
+		return c.run(ctx, emit, "git", filepath.Dir(target), "clone", "--progress", opts.GitURL, target)
 
 	case CreateVite, CreateNext, CreateNuxt, CreateAstro:
 		return c.runJS(ctx, opts, target, emit)
@@ -97,22 +106,22 @@ func (c *Creator) Create(ctx context.Context, opts CreateOptions, emit func(stri
 
 func (c *Creator) runLaravel(ctx context.Context, opts CreateOptions, target string, emit func(string)) error {
 	composer := c.ComposerFor()
-	if composer == "" {
+	if len(composer) == 0 {
 		return fmt.Errorf("composer not found (install it from Libs / Tools)")
 	}
 	phpExe := c.PhpExeFor()
 	if phpExe == "" {
 		return fmt.Errorf("no PHP runtime installed")
 	}
+	// composer is an argv: [composer.exe …] or [php.exe, phar …].
+	composerArgs := append(append([]string{}, composer[1:]...),
+		"create-project", "laravel/laravel", opts.Name, "--no-interaction", "--prefer-dist")
 
 	// Laravel's dev script includes `php artisan pail` which needs POSIX
 	// pcntl — strip it on Windows so `composer run dev` works.
 	emit(fmt.Sprintf("composer create-project laravel/laravel %s", opts.Name))
 	env := append(os.Environ(), "PATH="+filepath.Dir(phpExe)+string(os.PathListSeparator)+os.Getenv("PATH"))
-	if err := c.runEnv(ctx, emit, composer, filepath.Dir(target),
-		[]string{"create-project", "laravel/laravel", opts.Name, "--no-interaction", "--prefer-dist"},
-		env,
-	); err != nil {
+	if err := c.runEnv(ctx, emit, composer[0], filepath.Dir(target), composerArgs, env); err != nil {
 		return err
 	}
 	return StripPailFromDevScript(target)
@@ -146,17 +155,18 @@ func (c *Creator) runJS(ctx context.Context, opts CreateOptions, target string, 
 		pathPrefix = "PATH=" + nodeDir + string(os.PathListSeparator) + os.Getenv("PATH")
 	}
 
-	// The create- tool per framework.
+	// The create- tool per framework, with the version tag npm-family
+	// resolvers expect (`npm create vite@latest app`).
 	var tool string
 	switch opts.Kind {
 	case CreateVite:
-		tool = "vite"
+		tool = "vite@latest"
 	case CreateNext:
-		tool = "next"
+		tool = "next-app@latest"
 	case CreateNuxt:
-		tool = "nuxt"
+		tool = "nuxt@latest"
 	case CreateAstro:
-		tool = "astro"
+		tool = "astro@latest"
 	}
 
 	// `npm create vite@latest my-app` / `pnpm create vite my-app` / etc.
