@@ -103,6 +103,10 @@ Fase 2).
 > mengimplementasi GPU engine, modal ekstensi PHP, jendela terminal terpisah
 > --terminal-window, gitworkspace; 40 paket hijau; hanya unduhan PECL biner + tuning forms
 > yang tertunda, eksplisit).
+> **Ronde-3 penutupan total** 2026-11-10 — PECL biner (deteksi flavor + rilis php.net) dan
+> panel tuning nginx/PHP diimplementasi; celah produksi nginx.conf-stock-tak-muat-sites
+> ditutup lewat conf terkelola `internal/webtuning`; 41 paket hijau; tidak ada penundaan
+> tersisa selain tuning-apache yang menunggu service apache itu sendiri.
 
 ## 5. Estimasi Effort Relatif
 

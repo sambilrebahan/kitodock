@@ -19,6 +19,7 @@ import (
 	kphp "kitodock/internal/php"
 	"kitodock/internal/projectroutes"
 	"kitodock/internal/projects"
+	"kitodock/internal/webtuning"
 )
 
 // ProjectServing is what the controller needs from the app's serving
@@ -182,6 +183,95 @@ func (p *Projects) ListPhpExtensions(series string) ([]PhpExtensionView, error) 
 // SetPhpExtension toggles one ini entry for a series.
 func (p *Projects) SetPhpExtension(series, name string, enabled bool) error {
 	return p.php.SetExtension(series, name, enabled)
+}
+
+// --- Tuning & PECL -----------------------------------------------------------
+
+// TuningView is one server's tunable directives ("" = default).
+type TuningView struct {
+	Server string            `json:"server"`
+	Values map[string]string `json:"values"`
+	// Available lists the tunable keys for the UI form.
+	Available []string `json:"available"`
+}
+
+// nginxTunableOrder drives the form field order.
+var nginxTunableOrder = []string{
+	"worker_processes", "worker_connections", "client_max_body_size",
+	"keepalive_timeout", "sendfile",
+}
+
+// phpTunableOrder drives the form field order.
+var phpTunableOrder = []string{
+	"memory_limit", "upload_max_filesize", "post_max_size",
+	"max_execution_time", "max_input_time", "opcache.enable",
+}
+
+// GetTuning reads nginx and active-PHP tunables.
+func (p *Projects) GetTuning() []TuningView {
+	out := []TuningView{
+		{Server: "nginx", Available: nginxTunableOrder},
+	}
+	conf := filepath.Join(paths.NginxDir(), "conf", "nginx.conf")
+	if values, err := webtuning.Tuning(conf); err == nil {
+		out[0].Values = values
+	} else {
+		out[0].Values = map[string]string{}
+	}
+
+	series := p.php.ActiveSeries()
+	phpView := TuningView{Server: "php", Available: phpTunableOrder, Values: map[string]string{}}
+	if series != "" {
+		phpView.Server = "php-" + series
+		if values, err := p.php.Tuning(series); err == nil {
+			phpView.Values = values
+		}
+	}
+	return append(out, phpView)
+}
+
+// SetTuning writes one directive and reloads the web server.
+func (p *Projects) SetTuning(server, directive, value string) error {
+	switch {
+	case server == "nginx":
+		conf := filepath.Join(paths.NginxDir(), "conf", "nginx.conf")
+		if err := webtuning.SetTuning(conf, directive, value); err != nil {
+			return err
+		}
+		if p.create != nil {
+			p.create.ReloadWebServers()
+		}
+		return nil
+	case strings.HasPrefix(server, "php"):
+		series := strings.TrimPrefix(server, "php")
+		series = strings.TrimPrefix(series, "-")
+		if series == "" {
+			series = p.php.ActiveSeries()
+		}
+		if series == "" {
+			return fmt.Errorf("no PHP version is active")
+		}
+		return p.php.SetTuning(series, directive, value)
+	}
+	return fmt.Errorf("unknown tuning target %q", server)
+}
+
+// PeclExtensions returns the installable catalog.
+func (p *Projects) PeclExtensions() []kphp.PeclExtension {
+	return kphp.PeclCatalog()
+}
+
+// InstallPeclExtension downloads and enables one PECL extension for a
+// series, streaming progress as php:pecl events.
+func (p *Projects) InstallPeclExtension(series, name string) (kphp.PeclResult, error) {
+	inst := kphp.NewPeclInstaller(p.php)
+	result, err := inst.Install(context.Background(), series, name, func(step string) {
+		p.bus.Emit(EvPhpPecl, map[string]any{"series": series, "extension": name, "step": step})
+	})
+	if err != nil {
+		return kphp.PeclResult{}, err
+	}
+	return *result, nil
 }
 
 // ListProjectRoutes exposes the mirrored route table (canonical anchors

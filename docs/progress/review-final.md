@@ -53,16 +53,34 @@ kode lewat pemeriksaan langsung (grep binding/controller/UI/pemanggil), bukan da
 | **Floating window detach/reattach + `--terminal-window`** | `termHub` ring 512 KiB/PTY dengan seq global (pump PTY lokal + SSH keduanya mengisi); endpoint owner `term_poll/write/resize` (bearer); personality `--terminal-window <ptyId>` = jendela Wails kedua (WindowInfo role probe → komponen `DetachedTerminal` xterm + polling 80 ms via fetch); kredensial lewat env, bukan argv; tombol detach per pane + chip reattach di workspace; PTY tetap hidup di proses utama, pane bisa kembali kapan pun |
 | **`internal/gitworkspace`** | `worktree list --porcelain` (path dinativisasi, refs/heads/ di-strip), `CurrentBranch`, `Resolve` (walk-up ke worktree root), `IsRepository`; 4 test dengan repositori + worktree git nyata |
 
-### Masih ditunda (satu-satunya, eksplisit)
+### Ronde ketiga: dua penundaan terakhir diimplementasi
 
-- **Unduhan PECL biner** (ekstensi tak ter-ship seperti xdebug/redis) + **tuning forms
-  nginx/apache/php** — keduanya kerja katalog/distribusi, bukan logika; dicatat di roadmap.
+> Update lanjutan: "selesaikan yang belum" — PECL biner dan tuning forms tuntas, plus
+> satu celah produksi yang ditemukan riset tuning.
+
+- **PECL biner** — `php/pecl.go`: deteksi flavor build seri (TS/NTS + arch via `php -i`),
+  pilih rilis terbaru yang menyediakan flavor itu (listing direktori releases php.net),
+  unduh zip → ekstrak `php_<ext>.dll` ke `ext\` → aktifkan entri ini. Katalog: xdebug,
+  redis, mongodb, apcu, imagick, memcached. Seam jaringan & probe di-inject; test dengan
+  server in-memory (rilis tanpa flavor dilewati, zip tanpa DLL ditolak, versi diurutkan
+  numerik 6.0.10 > 6.0.2). UI: seksi "Install from PECL" di modal ekstensi.
+- **Tuning forms** — panel "Server tuning" di Settings: nginx (worker_processes/connections,
+  client_max_body_size, keepalive_timeout, sendfile) + PHP aktif (memory/upload/post/
+  max_execution_time/max_input_time/opcache.enable); validasi per keluarga nilai; nginx
+  di-reload setelah set.
+- **Celah produksi ditemukan & ditutup**: nginx.conf stock dari zip **tidak pernah
+  memuat `sites/*`** — vhost proyek tertulis tapi tak termuat (live test fase 2 memakai
+  conf sendiri sehingga lolos). `internal/webtuning.EnsureManagedConf` kini dimigrasikan
+  di `syncUpstreams`: stock → conf terkelola ber-marker (worker_processes auto, events,
+  http + mime.types + `include sites/*.conf`); conf terkelola tak pernah ditimpa.
+- Apache tetap tanpa tuning form — apache memang belum terdaftar sebagai service
+  (renderer + sites dir saja); dicatat apa adanya.
 
 ## 3. Verifikasi
 
 | Pemeriksaan | Hasil |
 | --- | --- |
-| `go test ./...` (fresh) | ✅ **40 paket hijau** (gitworkspace baru) |
+| `go test ./...` (fresh) | ✅ **41 paket hijau** (webtuning baru) |
 | `go vet -unsafeptr=false` | ✅ |
 | Frontend vitest + lint + build | ✅ **14/14 test** (2 baru: bare-strings), 0 error lint |
 | Binary GUI + CLI (+ cross-compile linux CLI) | ✅ |

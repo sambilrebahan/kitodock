@@ -217,6 +217,13 @@
     "webview": {
       "installed": "terpasang",
       "missing": "tidak terpasang"
+    },
+    "tuning": {
+      "title": "Tuning server",
+      "help": "Direktif umum nginx dan PHP, divalidasi dan diterapkan dengan reload. Kosong berarti bawaan.",
+      "empty": "Pasang nginx atau PHP untuk menyetelnya di sini.",
+      "default": "bawaan",
+      "save": "Setel"
     }
   },
   "tray": {
@@ -288,7 +295,9 @@
       "filter": "Saring ekstensi…",
       "loaded": "termuat",
       "unshipped": "dll tidak tersedia",
-      "empty": "Tidak ada ekstensi yang cocok."
+      "empty": "Tidak ada ekstensi yang cocok.",
+      "pecl": "Pasang dari PECL (DLL pra-bangun)",
+      "installing": "memasang..."
     }
   },
   "ca": {

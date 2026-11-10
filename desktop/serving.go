@@ -23,6 +23,7 @@ import (
 	"kitodock/internal/services"
 	"kitodock/internal/sitedoctor"
 	"kitodock/internal/vhost"
+	"kitodock/internal/webtuning"
 )
 
 // poolWorkers is the php-cgi pool size per version (each worker serves one
@@ -141,6 +142,11 @@ func (s *serving) syncUpstreams(installed []kphp.Installed) {
 	conf := filepath.Join(kitodockNginxConfDir(), "nginx.conf")
 	if _, err := os.Stat(conf); err != nil {
 		return // nginx not installed yet; the sweep covers it later
+	}
+	// Migrate a stock conf into the managed layout (loads sites/*);
+	// already-managed confs pass through untouched.
+	if err := webtuning.EnsureManagedConf(conf); err != nil {
+		s.emit("project:error", "nginx", err)
 	}
 	var upstreams []vhost.Upstream
 	for _, version := range installed {

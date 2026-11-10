@@ -43,6 +43,8 @@ const (
 	EvProjectChanged = "project:changed"
 	// EvProjectCreate streams scaffolding progress for a new project.
 	EvProjectCreate = "project:create"
+	// EvPhpPecl streams PECL install steps.
+	EvPhpPecl = "php:pecl"
 	// EvProjectError reports a serving failure for a project.
 	EvProjectError = "project:error"
 	// EvDevStatus carries one dev server's state.

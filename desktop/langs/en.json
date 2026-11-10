@@ -217,6 +217,13 @@
     "webview": {
       "installed": "installed",
       "missing": "not installed"
+    },
+    "tuning": {
+      "title": "Server tuning",
+      "help": "Common nginx and PHP directives, edited with validation and applied with a reload. Empty means the default.",
+      "empty": "Install nginx or PHP to tune them here.",
+      "default": "default",
+      "save": "Set"
     }
   },
   "tray": {
@@ -288,7 +295,9 @@
       "filter": "Filter extensions…",
       "loaded": "loaded",
       "unshipped": "dll not shipped",
-      "empty": "No extensions match."
+      "empty": "No extensions match.",
+      "pecl": "Install from PECL (prebuilt DLL)",
+      "installing": "installing..."
     }
   },
   "ca": {

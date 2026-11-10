@@ -4,7 +4,9 @@ import { ExternalLink, FileCode, Globe, List, Lock, LockOpen, Play, Plus, Puzzle
 import {
   CreateKinds,
   CreateProject,
+  InstallPeclExtension,
   ListPhpExtensions,
+  PeclExtensions,
   GetProjectVhost,
   GetTLD,
   ListPhpSeries,
@@ -596,10 +598,16 @@ function ExtensionsModal({ series, onClose }: { series: string; onClose: () => v
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState("");
 
+  const [pecl, setPecl] = useState<{ name: string; label: string; note?: string }[]>([]);
+  const [installing, setInstalling] = useState("");
+
   const refresh = useCallback(() => {
     ListPhpExtensions(series)
       .then((list) => setRows(list ?? []))
       .catch(() => setRows([]));
+    PeclExtensions()
+      .then((list) => setPecl(list ?? []))
+      .catch(() => setPecl([]));
   }, [series]);
 
   useEffect(() => {
@@ -676,6 +684,35 @@ function ExtensionsModal({ series, onClose }: { series: string; onClose: () => v
           {visible.length === 0 && (
             <p className="px-3 py-6 text-center text-xs text-white/40">{t("projects.extensions.empty")}</p>
           )}
+          <div className="mt-3 border-t border-white/10 px-2 pt-2">
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/40">
+              {t("projects.extensions.pecl")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {pecl.map((ext) => (
+                <button
+                  key={ext.name}
+                  type="button"
+                  disabled={installing !== ""}
+                  title={ext.note}
+                  onClick={async () => {
+                    setInstalling(ext.name);
+                    try {
+                      await InstallPeclExtension(series, ext.name);
+                      refresh();
+                    } catch (error) {
+                      await dialogs.alert({ title: ext.label, message: String(error) });
+                    } finally {
+                      setInstalling("");
+                    }
+                  }}
+                  className="flex items-center gap-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  {installing === ext.name ? t("projects.extensions.installing") : "+ " + ext.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </div>

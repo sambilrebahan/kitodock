@@ -68,8 +68,8 @@ yang akan dipakai semua fase berikutnya.
   install dasar di Fase 1, PECL di Fase 2**.
 - `internal/tray` — systray menu service + quit + label i18n (project menu menyusul Fase 2).
   *(Realisasi: VcRedistModal tidak jadi modal khusus — URL redistributable mengalir lewat event
-  `service:error` + dialog; NotificationBell + GPU engine PDH terealisasi ronde review-final;
-  unduhan PECL biner tetap DIJADWALKAN ULANG [distribusi DLL per versi]; lihat
+  `service:error` + dialog; NotificationBell + GPU engine PDH + unduhan PECL biner
+  (releases php.net, deteksi TS/NTS+arch) terealisasi di ronde review-final; lihat
   docs/progress/review-final.md.)*
 - `internal/sysmetrics` — PDH CPU + GPU engine + gopsutil mem/disk + vendor.
 - `desktop/controllers/services.go`, `installer.go`, `system.go` (metrics, ports via netports —
@@ -147,9 +147,10 @@ dev server ter-proxy. Fase terpadat; boleh dipecah 2a/2b bila perlu.
   tags, TLD, delete, NewProjectModal 8 jenis, PhpExtensionsModal, DevServerLogs.
 - Halaman **Downloads** melengkap (tuning forms masuk Settings).
 - **Settings** — tab Services: CA card + tuning nginx/apache/php.
-  *(Realisasi: CA card + diagnostik WebView2 ada di panel Diagnostics; PhpExtensionsModal
-  TEREALISASI (ini toggle + live load) di ronde review-final; unduhan PECL biner dan tuning
-  forms tetap DIJADWALKAN ULANG — lihat docs/progress/review-final.md.)*
+  *(Realisasi: CA card + diagnostik WebView2 di panel Diagnostics; PhpExtensionsModal +
+  unduhan PECL biner + panel Server tuning (nginx & PHP) terealisasi di ronde review-final;
+  tuning apache menyusul bersama service apache itu sendiri; lihat
+  docs/progress/review-final.md.)*
 
 **AC**
 1. `composer create-project laravel/laravel` dari UI → project terdeteksi laravel → vhost
