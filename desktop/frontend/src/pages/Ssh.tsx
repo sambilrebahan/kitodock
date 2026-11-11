@@ -694,14 +694,14 @@ function SftpBrowser({ sftpId }: { sftpId: string }) {
   const mkdir = async () => {
     const name = window.prompt(t("ssh.newFolderName"));
     if (!name) return;
-    await SFTPMkdir(sftpId, join(remotePath, name));
+    await SFTPMkdir(sftpId, join(remotePath, name)).catch((error) => dialogs.alert({ title: name, message: String(error) }));
     loadRemote(remotePath);
   };
 
   const rename = async (entry: Entry) => {
     const next = window.prompt(t("ssh.renameTo"), entry.name);
     if (!next || next === entry.name) return;
-    await SFTPRename(sftpId, join(remotePath, entry.name), join(remotePath, next));
+    await SFTPRename(sftpId, join(remotePath, entry.name), join(remotePath, next)).catch((error) => dialogs.alert({ title: entry.name, message: String(error) }));
     loadRemote(remotePath);
   };
 
@@ -711,7 +711,7 @@ function SftpBrowser({ sftpId }: { sftpId: string }) {
       danger: true,
     });
     if (!yes) return;
-    await SFTPRemove(sftpId, join(remotePath, entry.name));
+    await SFTPRemove(sftpId, join(remotePath, entry.name)).catch((error) => dialogs.alert({ title: entry.name, message: String(error) }));
     loadRemote(remotePath);
   };
 

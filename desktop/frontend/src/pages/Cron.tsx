@@ -67,16 +67,16 @@ export default function Cron() {
       danger: true,
     });
     if (!yes) return;
-    await DeleteCron(job.id);
+    await DeleteCron(job.id).catch((error) => dialogs.alert({ title: job.name, message: String(error) }));
     refresh();
   };
 
   const runNow = async (job: CronJob) => {
-    await RunCronNow(job.id);
+    await RunCronNow(job.id).catch((error) => dialogs.alert({ title: job.name, message: String(error) }));
   };
 
   const toggle = async (job: CronJob, enabled: boolean) => {
-    await ToggleCron(job.id, enabled);
+    await ToggleCron(job.id, enabled).catch(() => { /* status event refreshes */ });
     refresh();
   };
 

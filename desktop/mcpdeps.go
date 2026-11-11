@@ -29,9 +29,13 @@ type mcpDeps struct {
 func (d *mcpDeps) Projects() []controllers.MCPProject {
 	out := []controllers.MCPProject{}
 	for _, p := range d.serving.ListProjects() {
+		scheme := "http"
+		if d.serving.ProjectSSL(p.Name) {
+			scheme = "https"
+		}
 		out = append(out, controllers.MCPProject{
 			Name: p.Name,
-			URL:  "https://" + d.serving.HostnameOf(p.Name),
+			URL:  scheme + "://" + d.serving.HostnameOf(p.Name),
 			Kind: string(p.Kind),
 		})
 	}

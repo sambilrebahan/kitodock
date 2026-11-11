@@ -152,12 +152,10 @@ func runAgentEvent(args []string) {
 	}
 	if len(args) > 1 {
 		event.Payload = args[1]
-	} else if stat, err := os.Stdin.Stat(); err == nil && stat.Size() > 0 {
-		data, _ := io.ReadAll(os.Stdin)
+	} else if stat, err := os.Stdin.Stat(); err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
+		// Pipes report Size() == 0; the mode check is the reliable signal.
+		data, _ := io.ReadAll(io.LimitReader(os.Stdin, 16*1024))
 		event.Payload = string(data)
-		if len(event.Payload) > 16*1024 {
-			event.Payload = event.Payload[:16*1024]
-		}
 	}
 	// Best-effort extraction of session id and a human hint.
 	var probe map[string]any

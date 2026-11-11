@@ -83,6 +83,11 @@ func (d *Doctor) fixEnv(name string, target sitedoctor.Target) error {
 	if _, err := os.Stat(source); err != nil {
 		return fmt.Errorf(".env.example not found")
 	}
+	// Never overwrite an existing .env: it may contain user secrets this
+	// check cannot see. The fix only seeds a missing file.
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf(".env already exists — refusing to overwrite it")
+	}
 	data, err := os.ReadFile(source)
 	if err != nil {
 		return err

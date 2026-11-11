@@ -4,6 +4,7 @@ package main
 // about behavior; internal/paths stays import-free of everything).
 
 import (
+	"os"
 	"path/filepath"
 
 	"kitodock/internal/paths"
@@ -16,5 +17,9 @@ func kitodockCaddyDir() string      { return paths.CaddyDir() }
 func kitodockPHPDir() string        { return paths.PHPDir() }
 
 func realHostsFile() string {
-	return `C:\Windows\System32\drivers\etc\hosts`
+	root := os.Getenv("SystemRoot")
+	if root == "" {
+		root = `C:\Windows`
+	}
+	return filepath.Join(root, "System32", "drivers", "etc", "hosts")
 }

@@ -119,7 +119,7 @@ export default function Agents() {
   };
 
   const stop = async (session: Session) => {
-    await StopAgent(session.id);
+    await StopAgent(session.id).catch(() => { /* exit event follows */ });
     refresh();
   };
 
@@ -131,7 +131,7 @@ export default function Agents() {
   };
 
   const archive = async (session: Session) => {
-    await ArchiveAgent(session.id, !session.archived);
+    await ArchiveAgent(session.id, !session.archived).catch((error) => dialogs.alert({ title: session.title || session.id, message: String(error) }));
     refresh();
   };
 
@@ -141,7 +141,7 @@ export default function Agents() {
       danger: true,
     });
     if (!yes) return;
-    await DeleteAgent(session.id);
+    await DeleteAgent(session.id).catch((error) => dialogs.alert({ title: session.title || session.id, message: String(error) }));
     refresh();
   };
 

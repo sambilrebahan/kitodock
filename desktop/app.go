@@ -220,15 +220,15 @@ func NewApp(trayIcon []byte) *App {
 // jobsToRaw converts typed cron jobs to the raw config representation
 // (config stores []map[string]any to avoid importing cron from config).
 func jobsToRaw(jobs []cron.Job) []map[string]any {
-	out := make([]map[string]any, len(jobs))
-	for i, job := range jobs {
+	out := make([]map[string]any, 0, len(jobs))
+	for _, job := range jobs {
 		data, err := json.Marshal(job)
 		if err != nil {
 			continue
 		}
 		var m map[string]any
 		if json.Unmarshal(data, &m) == nil {
-			out[i] = m
+			out = append(out, m)
 		}
 	}
 	return out

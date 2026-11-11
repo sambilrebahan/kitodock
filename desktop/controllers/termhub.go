@@ -6,7 +6,10 @@ package controllers
 // The main window keeps receiving Wails events as before; the hub is an
 // additional sink, not a replacement.
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // termChunk is one ordered piece of output.
 type termChunk struct {
@@ -18,12 +21,16 @@ type termChunk struct {
 // once the byte budget is exceeded; late attachers simply miss the oldest
 // scrollback, like any terminal.
 type termRing struct {
-	chunks []termChunk
-	bytes  int
-	exited bool
+	chunks   []termChunk
+	bytes    int
+	exited   bool
+	exitedAt time.Time
 }
 
 const termRingMaxBytes = 512 * 1024
+
+// termRingTTL is how long an exited PTY's ring survives for late attachers.
+const termRingTTL = 5 * time.Minute
 
 // termHub is the global mirror.
 type termHub struct {
@@ -55,12 +62,27 @@ func termAppend(ptyID string, data string) {
 	}
 }
 
-// termExit marks a PTY finished; pollers learn through the exited flag.
+// termExit marks a PTY finished and schedules the ring for collection.
+// The ring lingers briefly so late attachers see the "exited" state and
+// any tail output; a janitor sweep drops it after the TTL.
 func termExit(ptyID string) {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 	if ring := hub.rings[ptyID]; ring != nil {
 		ring.exited = true
+		ring.exitedAt = time.Now()
+	}
+}
+
+// termSweep drops rings of exited PTYs whose grace period has elapsed,
+// and forgets rings with no attached poller. Called from the drain loop.
+func termSweep() {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	for id, ring := range hub.rings {
+		if ring.exited && time.Since(ring.exitedAt) > termRingTTL {
+			delete(hub.rings, id)
+		}
 	}
 }
 

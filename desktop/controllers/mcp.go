@@ -6,12 +6,14 @@ package controllers
 // methods arrive pre-gated (the bridge enforces the confirm argument).
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"kitodock/internal/applicationcontext"
 	"kitodock/internal/mcpclient"
@@ -336,14 +338,24 @@ func RunProjectExec(dir string, command string) (string, error) {
 	if len(fields) == 0 {
 		return "", fmt.Errorf("empty command")
 	}
-	if !execAllowlist[strings.ToLower(fields[0])] {
+	first := strings.ToLower(fields[0])
+	if !execAllowlist[first] {
+		// `artisan` alone is a common mistake; the real form is `php artisan`.
+		if first == "artisan" {
+			return "", fmt.Errorf("use `php artisan …` (the artisan binary is not on PATH by itself)")
+		}
 		return "", fmt.Errorf("%q is not allowed through kitodock_exec (allowed: php, composer, npm, npx, pnpm, yarn, node, git)", fields[0])
 	}
-	cmd := exec.Command(fields[0], fields[1:]...)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, fields[0], fields[1:]...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if len(out) > 64*1024 {
 		out = out[:64*1024]
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		return string(out), fmt.Errorf("command timed out after 120s")
 	}
 	return string(out), err
 }

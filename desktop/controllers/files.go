@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -163,7 +164,7 @@ func (g *Git) InspectSourceControl(project string) (map[string]any, string) {
 func (g *Git) GetSourceControlStatus(project string) (sourcecontrol.Status, error) {
 	svc, ok := g.serviceFor(project)
 	if !ok {
-		return sourcecontrol.Status{}, nil
+		return sourcecontrol.Status{}, fmt.Errorf("project %q not found", project)
 	}
 	return svc.Status(context.Background())
 }
@@ -171,7 +172,7 @@ func (g *Git) GetSourceControlStatus(project string) (sourcecontrol.Status, erro
 func (g *Git) StartSourceControlStage(project string, paths []string) error {
 	svc, ok := g.serviceFor(project)
 	if !ok {
-		return nil
+		return fmt.Errorf("project %q not found", project)
 	}
 	return svc.Stage(context.Background(), paths)
 }
@@ -179,7 +180,7 @@ func (g *Git) StartSourceControlStage(project string, paths []string) error {
 func (g *Git) StartSourceControlUnstage(project string, paths []string) error {
 	svc, ok := g.serviceFor(project)
 	if !ok {
-		return nil
+		return fmt.Errorf("project %q not found", project)
 	}
 	return svc.Unstage(context.Background(), paths)
 }
@@ -187,7 +188,7 @@ func (g *Git) StartSourceControlUnstage(project string, paths []string) error {
 func (g *Git) StartSourceControlCommit(project, message string) error {
 	svc, ok := g.serviceFor(project)
 	if !ok {
-		return nil
+		return fmt.Errorf("project %q not found", project)
 	}
 	return svc.Commit(context.Background(), message)
 }
@@ -195,7 +196,7 @@ func (g *Git) StartSourceControlCommit(project, message string) error {
 func (g *Git) StartSourceControlPush(project string) error {
 	svc, ok := g.serviceFor(project)
 	if !ok {
-		return nil
+		return fmt.Errorf("project %q not found", project)
 	}
 	return svc.Push(context.Background())
 }

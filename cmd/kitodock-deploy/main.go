@@ -150,7 +150,10 @@ func run(c cfg) error {
 	_, err = deploy.RunApply(session, steps, onStep, func(line string) {
 		fmt.Println("  " + redactor.Redact(line))
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("%s", redactor.Redact(err.Error()))
+	}
+	return nil
 }
 
 // dial opens the SSH session: by saved host name (reusing kitodock's

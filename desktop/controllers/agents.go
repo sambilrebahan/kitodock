@@ -99,11 +99,17 @@ func NewAgents(bus *EventBus, registry *pty.Registry, serving AgentServing) (*Ag
 // StartDrain pumps the hook spool into the feed until stop; new entries
 // are announced as agents:activity events.
 func (c *Agents) StartDrain() (stop func()) {
-	return c.feed.StartDrainLoop(
+	stopFeed := c.feed.StartDrainLoop(
 		filepath.Join(paths.AgentsDir(), "spool"), drainInterval,
 		func(events []agents.Activity) {
 			c.bus.Emit(EvAgentsActivity, map[string]any{"events": events})
 		})
+	// Collect exited PTY rings so memory does not grow without bound.
+	stopSweep := startTermSweepLoop()
+	return func() {
+		stopFeed()
+		stopSweep()
+	}
 }
 
 // drainInterval is the spool pump cadence; short enough that hook events
@@ -277,4 +283,22 @@ func quoteCommand(exe string, args ...string) string {
 		exe = `"` + exe + `"`
 	}
 	return strings.Join(append([]string{exe}, args...), " ")
+}
+
+// startTermSweepLoop periodically drops exited terminal rings.
+func startTermSweepLoop() func() {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				termSweep()
+			}
+		}
+	}()
+	return func() { close(done) }
 }
