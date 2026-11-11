@@ -99,6 +99,26 @@ lalu setiap import frontend ↔ stub, dan setiap langganan event frontend ↔ em
 
 Setelah perbaikan: binding audit **0 masalah**; 9 id halaman Sidebar = App = katalog palette.
 
+### Ronde kelima: audit eksternal menyeluruh + perbaikan penuh
+
+Sebuah audit independen (2026-11-10, HEAD `3e26250`) menemukan 5 Kritis, 13 Tinggi,
+18 Sedang, 15 Rendah. Semua diperbaiki dalam lima commit berturut-turut:
+
+| Gelombang | Commit | Cakupan |
+| --- | --- | --- |
+| G1 Keamanan | `b1d17d0` | K1 deploy RCE, K2 symlink escape, K3 MCP gate bypass + per-source tokens, H5 path traversal, H6 knownhosts panic, H13 PECL injection |
+| G2 Fitur mati | `ebae269` | K5 detached window crash, H1 serving events, H2 CreateProject, H3 SSL revert, H4 config deep-clone, H8 doctor argv, H12 notif ID, M2 TLD |
+| G3 Data-loss | `ecf2b8f` | K4 mcpclient, H9 form keys, H10 dirty reset, M1 vhost content restore, M11 dialog key, M14 nginx backup |
+| G4 Services+UI | `adfc2d3` | H7 restart/stop + scoped kill, H11 ptyId, M3 shutdown drain, M4 mutex, M10 setActiveTab, M12 debounce |
+| G5 Medium | `474f949` | M5 git errors, M6 .env, M7 cron nil, M8 CLI redact, M13 ring GC, M15 gitworkspace, L6-L8, L10-L11 |
+
+**Yang tetap terbuka (disengaja):**
+- L4: `log/slog` + rotasi log — belum dibangun (logging struktur penuh)
+- L5: pipeline rilis GitHub Actions (MSI/portable/sidecar SHA-256) — manual saat ini
+- L12: dua `unsafe.Pointer` di clipboard membuat `go vet` default merah; CI sudah pakai `-unsafeptr=false`
+- L13: `go test ./...` ikut mengompilasi `node_modules/flatted` — noise, bukan kegagalan
+- L14: URL PECL belum diverifikasi hidup terhadap php.net build service
+
 ## 4. Catatan
 
 1. Pane agent di workspace: `pane.kind = "agent"` — dirender Terminal biasa (aliran

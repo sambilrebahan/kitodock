@@ -1,0 +1,80 @@
+THIRD-PARTY NOTICES
+
+This file acknowledges the third-party components distributed with or
+used by Kitodock. Each entry names the component, its license, and its
+role in the project.
+
+========================================================================
+GO MODULE DEPENDENCIES
+========================================================================
+
+github.com/wailsapp/wails/v2 (MIT)
+    Desktop application framework (window, IPC, asset server).
+
+github.com/robfig/cron/v3 (MIT)
+    Cron expression parser and scheduler for the in-app job engine.
+
+github.com/fsnotify/fsnotify (BSD-3-Clause)
+    Filesystem change notifications for config watching.
+
+github.com/pkg/sftp (MIT)
+    SFTP protocol implementation over an SSH connection.
+
+golang.org/x/crypto (BSD-3-Clause)
+    SSH client, key parsing, and cryptographic primitives.
+
+golang.org/x/sys (BSD-3-Clause)
+    Low-level Windows API access (ConPTY, registry, security).
+
+========================================================================
+FRONTEND DEPENDENCIES
+========================================================================
+
+react, react-dom (MIT)
+    UI framework.
+
+typescript (Apache-2.0)
+    Type-safe JavaScript.
+
+vite (MIT)
+    Build tool and dev server.
+
+tailwindcss (MIT)
+    Utility-first CSS framework.
+
+xterm (MIT)
+    Terminal renderer (xterm.js).
+
+@monaco-editor/react + monaco-editor (MIT)
+    Code editor (Monaco, vendored locally under public/vs).
+
+lucide-react (ISC)
+    Icon set.
+
+react-markdown + remark-gfm (MIT)
+    Markdown rendering in file previews.
+
+========================================================================
+REDISTRIBUTED BINARIES (downloaded at runtime by the installer)
+========================================================================
+
+nginx (BSD-2-Clause)           https://nginx.org/
+MySQL Community Server (GPL-2.0) https://dev.mysql.com/
+Redis (BSD-3-Clause / RSAL)    https://redis.io/
+Mailpit (MIT)                  https://github.com/axllent/mailpit
+PHP (PHP License v3.08)        https://www.php.net/
+Node.js (MIT)                  https://nodejs.org/
+Composer (MIT)                 https://getcomposer.org/
+Caddy (Apache-2.0)             https://caddyserver.com/
+
+Each is downloaded from its official source at the pinned version listed
+in the installer catalog; none are committed to this repository.
+
+========================================================================
+DESIGN REFERENCE
+========================================================================
+
+LaraEnv (Apache-2.0)
+    Kitodock is an independent implementation that used LaraEnv's
+    behavior and architecture as a design reference. No LaraEnv source
+    code was copied; see NOTICE for details.
