@@ -120,7 +120,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     <DialogsContext.Provider value={dialogs}>
       {children}
       {active &&
-        createPortal(<ActiveDialog request={active} onDismiss={dismiss} />, document.body)}
+        createPortal(<ActiveDialog key={active.id} request={active} onDismiss={dismiss} />, document.body)}
     </DialogsContext.Provider>
   );
 }

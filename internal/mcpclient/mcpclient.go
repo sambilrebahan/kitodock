@@ -75,9 +75,9 @@ func Register(c Client, home string, spec ServerSpec) error {
 
 	switch c {
 	case ClaudeCode, Cursor:
-		doc := map[string]any{}
-		if data, err := os.ReadFile(path); err == nil {
-			_ = json.Unmarshal(data, &doc)
+		doc, err := readJSONDoc(path)
+		if err != nil {
+			return fmt.Errorf("refusing to touch %s: %w", filepath.Base(path), err)
 		}
 		servers, _ := doc["mcpServers"].(map[string]any)
 		if servers == nil {
@@ -113,9 +113,9 @@ func Unregister(c Client, home string) error {
 	}
 	switch c {
 	case ClaudeCode, Cursor:
-		doc := map[string]any{}
-		if data, err := os.ReadFile(path); err == nil {
-			_ = json.Unmarshal(data, &doc)
+		doc, err := readJSONDoc(path)
+		if err != nil {
+			return fmt.Errorf("refusing to touch %s: %w", filepath.Base(path), err)
 		}
 		if servers, ok := doc["mcpServers"].(map[string]any); ok {
 			delete(servers, ServerName)
@@ -218,4 +218,41 @@ func backupOnce(path string) {
 		return
 	}
 	_ = os.WriteFile(bak, data, 0o600)
+}
+
+// tomlString renders a TOML basic string with real escaping — Windows
+// paths otherwise produce invalid TOML.
+func tomlString(v string) string {
+	return "\"" + strings.NewReplacer(
+		"\\", "\\\\",
+		"\"", "\\\"",
+		"\n", "\\n",
+	).Replace(v) + "\""
+}
+
+// writeFileAtomic lands content via temp+rename so a crash mid-write
+// cannot leave a truncated config behind.
+func writeFileAtomic(path string, data []byte) error {
+	tmp := path + ".kitodock-tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// readJSONDoc loads a JSON config or errors — an unparseable file is
+// never silently replaced.
+func readJSONDoc(path string) (map[string]any, error) {
+	doc := map[string]any{}
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return doc, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	return doc, nil
 }

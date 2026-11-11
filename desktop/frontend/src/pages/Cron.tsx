@@ -98,6 +98,7 @@ export default function Cron() {
 
       {showForm && (
         <CronForm
+          key={editing?.id ?? "new"}
           job={editing}
           onSave={save}
           onCancel={() => {

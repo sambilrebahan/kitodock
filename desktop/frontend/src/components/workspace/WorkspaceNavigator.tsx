@@ -109,6 +109,16 @@ function FilesTab({ projectName, onDirtyChange, onDirtyPath }: { projectName: st
     onDirtyPath(dirty ? docPath : "");
   }, [dirty, docPath, onDirtyChange, onDirtyPath]);
 
+  // Reset the dirty count when FilesTab unmounts (tab switch or project
+  // change): a stale count would block quit forever.
+  useEffect(() => {
+    return () => {
+      onDirtyChange(0);
+      onDirtyPath("");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openDoc = useCallback(async (filePath: string) => {
     try {
       const result = await ReadDocument("project", projectName, filePath);

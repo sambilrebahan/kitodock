@@ -221,6 +221,7 @@ export default function Ssh() {
           <div className="space-y-3">
             {showForm && (
               <HostForm
+                key={editing?.name ?? "new"}
                 host={editing}
                 hosts={hosts}
                 onSave={async (host, password) => {

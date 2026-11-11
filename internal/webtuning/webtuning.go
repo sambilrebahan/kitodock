@@ -9,6 +9,7 @@ package webtuning
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -52,12 +53,23 @@ http {
     include sites/*.conf;
 }
 `
-	if err := os.MkdirAll(strings.TrimSuffix(path, `\`+lastSegment(path)), 0o755); err != nil {
-		// The conf dir is created by the installer; ignore shape issues
-		// and let the write surface real errors.
-		_ = err
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("conf dir: %w", err)
 	}
-	return os.WriteFile(path, []byte(conf), 0o644)
+	// The stock conf is preserved beside the managed one: a user who
+	// customized it can diff and recover.
+	if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
+		bak := path + ".kitodock-stock"
+		if _, statErr := os.Stat(bak); os.IsNotExist(statErr) {
+			_ = os.WriteFile(bak, data, 0o644)
+		}
+	}
+	// Atomic: a crash mid-write must not leave nginx without its conf.
+	tmp := path + ".kitodock-tmp"
+	if err := os.WriteFile(tmp, []byte(conf), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func lastSegment(path string) string {

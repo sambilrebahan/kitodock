@@ -240,9 +240,12 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 		{apachePath, vhost.RenderApache(spec)},
 		{caddyPath, vhost.RenderCaddy(spec)},
 	}
+	// Snapshot what each vhost file looked like before we overwrite, so
+	// a failed apply restores the user's prior state rather than deleting it.
+	snapshots := snapshotWrites(writes)
 	for _, write := range writes {
 		if err := atomicfile.Write(write.path, []byte(write.body), 0o644); err != nil {
-			rollbackWrites(writes)
+			restoreWrites(snapshots)
 			return err
 		}
 	}
@@ -267,7 +270,7 @@ func (s *serving) ApplyProject(ctx context.Context, project projects.Project) er
 		s.emit("project:error", project.Name,
 			fmt.Errorf("HTTPS enabled but no web server is running to listen on :443; rolled back"))
 		s.hosts.SnapshotRestore(hostsBefore)
-		rollbackWrites(writes)
+		restoreWrites(snapshots)
 		// Re-write the plain variant so the project keeps serving.
 		plain := spec
 		plain.SSL = false
@@ -362,12 +365,39 @@ func (s *serving) reloadWebServers() {
 	}
 }
 
-func rollbackWrites(writes []struct {
+// writeSnapshot remembers what a vhost file contained before a write
+// (nil = the file did not exist).
+type writeSnapshot struct {
+	path    string
+	existed bool
+	content []byte
+}
+
+// snapshotWrites captures the current content of every target path.
+func snapshotWrites(writes []struct {
 	path string
 	body string
-}) {
+}) []writeSnapshot {
+	out := make([]writeSnapshot, 0, len(writes))
 	for _, write := range writes {
-		os.Remove(write.path)
+		snap := writeSnapshot{path: write.path}
+		if data, err := os.ReadFile(write.path); err == nil {
+			snap.existed = true
+			snap.content = data
+		}
+		out = append(out, snap)
+	}
+	return out
+}
+
+// restoreWrites puts every file back exactly as it was.
+func restoreWrites(snapshots []writeSnapshot) {
+	for _, snap := range snapshots {
+		if snap.existed {
+			_ = os.WriteFile(snap.path, snap.content, 0o644)
+		} else {
+			os.Remove(snap.path)
+		}
 	}
 }
 

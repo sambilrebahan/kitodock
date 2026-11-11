@@ -356,6 +356,7 @@ export default function Deployments() {
       <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
         {editing && (
           <DeploymentForm
+            key={editing.id || "new"}
             view={editing}
             hosts={hosts}
             presets={presets}

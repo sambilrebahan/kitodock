@@ -1,6 +1,7 @@
 package mcpclient
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,4 +125,29 @@ func readFile(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+func TestRegisterRefusesCorruptJSON(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".cursor", "mcp.json")
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	os.WriteFile(path, []byte(`{"mcpServers": TRAILING_COMMA,,}`), 0o600)
+
+	if err := Register(Cursor, home, ServerSpec{Command: "kitodock.exe"}); err == nil {
+		t.Fatal("corrupt config accepted for overwrite")
+	}
+	// The corrupt file is untouched.
+	data, _ := os.ReadFile(path)
+	if !bytes.Contains(data, []byte("TRAILING_COMMA")) {
+		t.Fatal("corrupt config overwritten")
+	}
+}
+
+func TestTOMLEscapesWindowsPaths(t *testing.T) {
+	// Single backslashes in, doubled backslashes out (TOML escape).
+	got := tomlString(`C:\Program Files\kitodock\kitodock.exe`)
+	want := "\"C:\\\\Program Files\\\\kitodock\\\\kitodock.exe\""
+	if got != want {
+		t.Fatalf("tomlString = %s, want %s", got, want)
+	}
 }
