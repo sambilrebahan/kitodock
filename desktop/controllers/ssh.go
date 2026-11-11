@@ -308,7 +308,9 @@ func (c *SSH) DisconnectSSH(connID string) {
 	}
 }
 
-// CloseAllSSH tears down every live session (app shutdown).
+// CloseAllSSH tears down every live session (app shutdown). All cleanup
+// runs outside the mutex: the close paths take it themselves and holding
+// it here would deadlock the pumps.
 func (c *SSH) CloseAllSSH() {
 	c.mu.Lock()
 	conns := make([]*ssh.Session, 0, len(c.conns))
@@ -317,13 +319,15 @@ func (c *SSH) CloseAllSSH() {
 		delete(c.conns, id)
 		delete(c.connHosts, id)
 	}
+	shells := make([]*ssh.Session, 0, len(c.shells))
 	for id, s := range c.shells {
-		s.Close()
+		shells = append(shells, s)
 		delete(c.shells, id)
 		delete(c.shellConns, id)
 	}
+	sftps := make([]*ssh.SFTPSession, 0, len(c.sftp))
 	for id, entry := range c.sftp {
-		entry.client.Close()
+		sftps = append(sftps, entry.client)
 		delete(c.sftp, id)
 	}
 	edits := make([]*remoteEdit, 0, len(c.edits))
@@ -333,6 +337,12 @@ func (c *SSH) CloseAllSSH() {
 	}
 	c.mu.Unlock()
 	for _, s := range conns {
+		s.Close()
+	}
+	for _, s := range shells {
+		s.Close()
+	}
+	for _, s := range sftps {
 		s.Close()
 	}
 	for _, edit := range edits {

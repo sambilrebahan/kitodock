@@ -142,6 +142,7 @@ func (a *App) beforeClose(ctx context.Context) bool {
 	// Document shutdown gate: if unsaved buffers exist, ask the frontend
 	// to confirm; the user's answer arrives through the resolve channel.
 	if a.Terminal.DocumentDirtyCount() > 0 {
+		a.bus.DrainShutdownResolve()
 		a.bus.Emit(controllers.EvDocumentsShutdownRequest, a.Terminal.DocumentDirtyCount())
 		select {
 		case allow := <-a.bus.ShutdownResolveCh():

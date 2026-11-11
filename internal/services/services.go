@@ -390,7 +390,14 @@ func (m *Manager) watchReplica(name string, internal bool, rep *replica) {
 		return
 	}
 	time.Sleep(restartAfter)
-	// The stop may have been requested while we slept; Start re-checks.
+	// The stop may have been requested while we slept: re-check the flag
+	// so a user Stop during the backoff window is never overridden.
+	m.mu.Lock()
+	stoppedNow := m.stopFlag[name]
+	m.mu.Unlock()
+	if stoppedNow {
+		return
+	}
 	_ = m.Start(context.Background(), name)
 }
 
@@ -526,7 +533,9 @@ func (m *Manager) KillStrays() {
 	}
 	m.mu.Unlock()
 	for _, s := range strays {
-		if err := killImage(baseName(s.exe)); err == nil {
+		// killImage by name would hit every nginx.exe on the machine
+		// (tools, other stacks); scope to processes started from our root.
+		if err := killImageUnderRoot(pathsRoot(), baseName(s.exe)); err == nil {
 			m.ringFor(s.name).append("cleaned up a leftover process from a previous run")
 		}
 	}
@@ -693,4 +702,12 @@ func awaitReplicaExit(rep *replica, within time.Duration) bool {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+// pathsRoot reports the environment root for KillStrays path scoping.
+func pathsRoot() string {
+	if r := os.Getenv("KITODOCK_ROOT"); r != "" {
+		return r
+	}
+	return "C:\\kitodock"
 }

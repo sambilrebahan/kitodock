@@ -336,6 +336,9 @@ func TestKillStraysCleansLeftovers(t *testing.T) {
 	f := newFixture(t)
 	// Start a raw process the manager knows nothing about… then teach the
 	// manager its definition and sweep.
+	// Scoped KillStrays only touches processes under KITODOCK_ROOT;
+	// point it at the fixture directory so the stray is in scope.
+	t.Setenv("KITODOCK_ROOT", filepath.Dir(f.exe))
 	stray := exec.Command(f.exe, "hold")
 	stdout, err := stray.StdoutPipe()
 	if err != nil {

@@ -145,3 +145,13 @@ func (b *EventBus) Emit(name string, data ...any) {
 // ShutdownResolveCh exposes the resolve channel for the lifecycle's
 // beforeClose document gate.
 func (b *EventBus) ShutdownResolveCh() <-chan bool { return b.shutdownResolve }
+
+// DrainShutdownResolve discards any stale answer left from a previous
+// gate round; called right before a new shutdown-request is emitted so
+// an old "allow" can never auto-approve the next close attempt.
+func (b *EventBus) DrainShutdownResolve() {
+	select {
+	case <-b.shutdownResolve:
+	default:
+	}
+}

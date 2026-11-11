@@ -155,7 +155,7 @@ export default function Agents() {
     }
   };
 
-  const running = (session: Session) => session.ptyId !== "";
+  const running = (session: Session) => Boolean(session.ptyId);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
